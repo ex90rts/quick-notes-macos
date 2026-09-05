@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Xcode user state and derived output
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Editor-local settings
+.vscode/
+.idea/
+
+# Packaged releases
+dist/
+*.app
+
+# Local persistence stores
+*.store
+*.store-shm
+*.store-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
