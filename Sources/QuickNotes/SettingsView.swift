@@ -5,10 +5,12 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @EnvironmentObject var vm: NotesViewModel
     @EnvironmentObject var preferences: AppPreferences
+    @Environment(\.appLanguage) private var appLanguage
     @State private var showTagSortSheet = false
     @State private var exportMessage: String?
     @State private var exportSucceeded = false
     @State private var isExportTooltipVisible = false
+    @State private var importAlert: SettingsImportAlert?
     @FocusState private var isTagInputFocused: Bool
 
     var body: some View {
@@ -21,8 +23,15 @@ struct SettingsView: View {
         .frame(minWidth: 520, minHeight: 280)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .sheet(isPresented: $showTagSortSheet) {
-            TagSortView(isPresented: $showTagSortSheet)
+            TagSortView(isPresented: $showTagSortSheet, language: appLanguage)
                 .environmentObject(vm)
+        }
+        .alert(item: $importAlert) { alert in
+            Alert(
+                title: Text(verbatim: alert.title),
+                message: Text(verbatim: alert.message),
+                dismissButton: .default(Text("OK"))
+            )
         }
     }
 
@@ -35,10 +44,11 @@ struct SettingsView: View {
     private var settingsContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
+                displayLanguageSection
                 tagsSection
                 clipboardSection
                 appearanceSection
-                exportSection
+                transferSection
             }
             .padding(AppSpacing.large)
         }
@@ -94,7 +104,7 @@ struct SettingsView: View {
                 }
 
                 if let error = vm.tagInputError {
-                    Text(error)
+                    Text(verbatim: localized(error))
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
@@ -145,7 +155,10 @@ struct SettingsView: View {
             description: "Customize the menu bar and panel."
         ) {
             VStack(spacing: 0) {
-                SettingsControlRow(title: "Menubar Icon") {
+                SettingsControlRow(
+                    title: "Menubar Icon",
+                    description: "Choose the menu bar icon style."
+                ) {
                     SettingsSegmentedControl(
                         options: MenuBarIconStyle.allCases,
                         selection: $preferences.menuBarIconStyle,
@@ -154,10 +167,12 @@ struct SettingsView: View {
                 }
                 .padding(.bottom, AppSpacing.medium)
 
-                RecessedDivider()
-                    .padding(.horizontal, AppSpacing.xSmall)
+                SettingsDashedDivider()
 
-                SettingsControlRow(title: "Panel Size") {
+                SettingsControlRow(
+                    title: "Panel Size",
+                    description: "Adjust the panel size."
+                ) {
                     SettingsSegmentedControl(
                         options: PanelSize.allCases,
                         selection: $preferences.panelSize,
@@ -170,56 +185,109 @@ struct SettingsView: View {
         }
     }
 
-    private var exportSection: some View {
+    private var transferSection: some View {
         SettingsSection(
-            title: "Export",
-            systemImage: "doc.badge.arrow.up",
-            description: "Create one Markdown document containing every saved note."
+            title: "Export / Import",
+            systemImage: "arrow.up.arrow.down",
+            description: "Move notes between Quick Notes installations using a Markdown document."
         ) {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Markdown document")
-                        .font(.system(size: 13, weight: .medium))
-                    Text("Includes titles, creation dates, tags, and note content.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            VStack(spacing: 0) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Export Notes")
+                            .font(.system(size: 13, weight: .medium))
+                        Text("Save titles, creation dates, tags, and Markdown content.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    ZStack {
+                        Button {
+                            exportMarkdown()
+                        } label: {
+                            Label("Export…", systemImage: "square.and.arrow.up")
+                        }
+                        .appProminentButton()
+                        .disabled(vm.notes.isEmpty)
+                    }
+                    .fixedSize()
+                    .overlay {
+                        if vm.notes.isEmpty {
+                            Color.clear
+                                .contentShape(.rect)
+                                .onHover { isExportTooltipVisible = $0 }
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .overlay(alignment: .topTrailing) {
+                        if vm.notes.isEmpty, isExportTooltipVisible {
+                            AppTooltip(text: localized("No notes to export."))
+                                .offset(y: -30)
+                                .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .bottomTrailing)))
+                        }
+                    }
+                    .animation(.easeOut(duration: 0.12), value: isExportTooltipVisible)
                 }
 
-                Spacer()
+                if !vm.notes.isEmpty, let exportMessage {
+                    Text(verbatim: exportMessage)
+                        .font(.caption)
+                        .foregroundStyle(exportSucceeded ? AppTheme.brandBlue : Color.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, AppSpacing.small)
+                }
 
-                ZStack {
+                SettingsDashedDivider()
+                    .padding(.vertical, AppSpacing.medium)
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Import Notes")
+                            .font(.system(size: 13, weight: .medium))
+                        Text("Merge another Quick Notes Markdown export into this library.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
                     Button {
-                        exportMarkdown()
+                        importMarkdown()
                     } label: {
-                        Label("Export…", systemImage: "square.and.arrow.up")
+                        Label("Import…", systemImage: "square.and.arrow.down")
                     }
                     .appProminentButton()
-                    .disabled(vm.notes.isEmpty)
+                    .fixedSize()
                 }
-                .fixedSize()
-                .overlay {
-                    if vm.notes.isEmpty {
-                        Color.clear
-                            .contentShape(.rect)
-                            .onHover { isExportTooltipVisible = $0 }
-                            .accessibilityHidden(true)
-                    }
-                }
-                .overlay(alignment: .topTrailing) {
-                    if vm.notes.isEmpty, isExportTooltipVisible {
-                        AppTooltip(text: "No notes to export.")
-                            .offset(y: -30)
-                            .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .bottomTrailing)))
-                    }
-                }
-                .animation(.easeOut(duration: 0.12), value: isExportTooltipVisible)
             }
+        }
+    }
 
-            if !vm.notes.isEmpty, let exportMessage {
-                Text(exportMessage)
-                    .font(.caption)
-                    .foregroundStyle(exportSucceeded ? AppTheme.brandBlue : Color.red)
+    private var displayLanguageSection: some View {
+        SettingsSection(
+            title: "Display Language",
+            systemImage: "globe",
+            description: "Follow the system, or choose manually.",
+            headerTrailing: {
+                Picker("", selection: $preferences.displayLanguage) {
+                    ForEach(AppLanguagePreference.allCases) { language in
+                        Text(LocalizedStringKey(language.title))
+                            .tag(language)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .controlSize(.large)
+                .frame(
+                    width: 180,
+                    height: AppControlMetrics.formControlHeight
+                )
+                .accessibilityLabel(Text("Display language"))
             }
+        ) {
+            EmptyView()
         }
     }
 
@@ -231,13 +299,13 @@ struct SettingsView: View {
         guard !vm.notes.isEmpty else { return }
         guard let parentWindow = NSApp.keyWindow else {
             exportSucceeded = false
-            exportMessage = "Could not open the export dialog."
+            exportMessage = localized("Could not open the export dialog.")
             return
         }
 
         let panel = NSSavePanel()
-        panel.title = "Export Quick Notes"
-        panel.prompt = "Export"
+        panel.title = localized("Export Quick Notes")
+        panel.prompt = localized("Export")
         panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText]
         panel.canCreateDirectories = true
         panel.nameFieldStringValue = exportFileName
@@ -249,12 +317,91 @@ struct SettingsView: View {
                 let markdown = MarkdownExporter.document(notes: vm.notes)
                 try markdown.write(to: destination, atomically: true, encoding: .utf8)
                 exportSucceeded = true
-                exportMessage = "Exported \(vm.notes.count) notes to \(destination.lastPathComponent)."
+                let key = vm.notes.count == 1
+                    ? "Exported %lld note to %@."
+                    : "Exported %lld notes to %@."
+                exportMessage = AppLocalization.format(
+                    key,
+                    language: appLanguage,
+                    arguments: Int64(vm.notes.count), destination.lastPathComponent
+                )
             } catch {
                 exportSucceeded = false
-                exportMessage = "Export failed: \(error.localizedDescription)"
+                exportMessage = AppLocalization.format(
+                    "Export failed: %@",
+                    language: appLanguage,
+                    arguments: error.localizedDescription
+                )
             }
         }
+    }
+
+    private func importMarkdown() {
+        guard let parentWindow = NSApp.keyWindow else {
+            importAlert = SettingsImportAlert(
+                title: localized("Import Failed"),
+                message: localized("Could not open the import dialog.")
+            )
+            return
+        }
+
+        let panel = NSOpenPanel()
+        panel.title = localized("Import Quick Notes")
+        panel.prompt = localized("Import")
+        panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+
+        panel.beginSheetModal(for: parentWindow) { response in
+            guard response == .OK, let source = panel.url else { return }
+
+            do {
+                let document = try String(contentsOf: source, encoding: .utf8)
+                let result = try vm.importMarkdownDocument(document)
+                importAlert = SettingsImportAlert(
+                    title: localized("Import Complete"),
+                    message: importResultMessage(result)
+                )
+            } catch {
+                let message = error is MarkdownImportError
+                    ? localized("The selected file is not a valid Quick Notes export.")
+                    : AppLocalization.format(
+                        "Import failed: %@",
+                        language: appLanguage,
+                        arguments: error.localizedDescription
+                    )
+                importAlert = SettingsImportAlert(
+                    title: localized("Import Failed"),
+                    message: message
+                )
+            }
+        }
+    }
+
+    private func importResultMessage(_ result: NoteImportResult) -> String {
+        let importedKey = result.importedCount == 1
+            ? "Successfully imported %lld note."
+            : "Successfully imported %lld notes."
+        var message = AppLocalization.format(
+            importedKey,
+            language: appLanguage,
+            arguments: Int64(result.importedCount)
+        )
+        if result.skippedCount > 0 {
+            let skippedKey = result.skippedCount == 1
+                ? " Ignored %lld note with identical title and content."
+                : " Ignored %lld notes with identical title and content."
+            message += AppLocalization.format(
+                skippedKey,
+                language: appLanguage,
+                arguments: Int64(result.skippedCount)
+            )
+        }
+        return message
+    }
+
+    private func localized(_ key: String) -> String {
+        AppLocalization.string(key, language: appLanguage)
     }
 
     private var exportFileName: String {
@@ -263,6 +410,12 @@ struct SettingsView: View {
         formatter.dateFormat = "yyyy-MM-dd_HHmmss"
         return "quick-notes-\(formatter.string(from: Date())).md"
     }
+}
+
+private struct SettingsImportAlert: Identifiable {
+    let id = UUID()
+    let title: String
+    let message: String
 }
 
 private struct HistoryLimitControl: View {
@@ -321,9 +474,9 @@ private struct HistoryLimitStepButton: View {
                     height: AppControlMetrics.formControlHeight
                 )
                 .background(
-                    isEnabled && isHovering
-                        ? AppTheme.hoverFill
-                        : AppTheme.elevatedSurface
+                    !isEnabled
+                        ? AppTheme.disabledFill
+                        : (isHovering ? AppTheme.hoverFill : AppTheme.elevatedSurface)
                 )
                 .clipShape(.rect(cornerRadius: AppControlMetrics.inputCornerRadius))
                 .overlay {
@@ -335,7 +488,7 @@ private struct HistoryLimitStepButton: View {
         .disabled(!isEnabled)
         .contentShape(.rect)
         .onHover { isHovering = $0 }
-        .accessibilityLabel(accessibilityLabel)
+        .accessibilityLabel(Text(LocalizedStringKey(accessibilityLabel)))
     }
 }
 
@@ -348,7 +501,7 @@ private struct SettingsHeaderAction: View {
 
     var body: some View {
         Button(action: action) {
-            Label(title, systemImage: systemImage)
+            Label(LocalizedStringKey(title), systemImage: systemImage)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(isEnabled ? AppTheme.brandBlue : AppTheme.disabledForeground)
                 .padding(.horizontal, 8)
@@ -376,7 +529,7 @@ private struct SettingsSegmentedControl<Option: Hashable>: View {
                 Button {
                     selection = option
                 } label: {
-                    Text(title(option))
+                    Text(LocalizedStringKey(title(option)))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(selection == option ? Color.white : Color.primary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -400,23 +553,34 @@ private struct SettingsSegmentedControl<Option: Hashable>: View {
         }
         .animation(.easeOut(duration: 0.12), value: selection)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(accessibilityLabel)
+        .accessibilityLabel(Text(LocalizedStringKey(accessibilityLabel)))
     }
 }
 
 private struct SettingsControlRow<Control: View>: View {
     let title: String
+    let description: String
     let control: Control
 
-    init(title: String, @ViewBuilder control: () -> Control) {
+    init(
+        title: String,
+        description: String,
+        @ViewBuilder control: () -> Control
+    ) {
         self.title = title
+        self.description = description
         self.control = control()
     }
 
     var body: some View {
         HStack(spacing: AppSpacing.medium) {
-            Text(title)
-                .font(.system(size: 13, weight: .medium))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(LocalizedStringKey(title))
+                    .font(.system(size: 13, weight: .medium))
+                Text(LocalizedStringKey(description))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Spacer(minLength: AppSpacing.small)
             control
         }
@@ -424,20 +588,23 @@ private struct SettingsControlRow<Control: View>: View {
     }
 }
 
-private struct RecessedDivider: View {
+private struct SettingsDashedDivider: View {
     var body: some View {
-        VStack(spacing: 0) {
-            Rectangle()
-                .fill(Color.primary.opacity(0.18))
-                .frame(height: 1)
-            Rectangle()
-                .fill(Color.primary.opacity(0.055))
-                .frame(height: 1)
-            Rectangle()
-                .fill(Color.white.opacity(0.64))
-                .frame(height: 1)
+        GeometryReader { geometry in
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: 0.5))
+                path.addLine(to: CGPoint(x: geometry.size.width, y: 0.5))
+            }
+            .stroke(
+                AppTheme.border,
+                style: StrokeStyle(
+                    lineWidth: 1,
+                    lineCap: .butt,
+                    dash: SettingsDividerMetrics.dashPattern
+                )
+            )
         }
-        .clipShape(.rect(cornerRadius: 1.5))
+        .frame(height: 1)
         .accessibilityHidden(true)
     }
 }
@@ -474,9 +641,9 @@ struct SettingsSection<Content: View, HeaderTrailing: View>: View {
                     .clipShape(.rect(cornerRadius: 7))
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
+                    Text(LocalizedStringKey(title))
                         .font(.system(size: 14, weight: .semibold))
-                    Text(description)
+                    Text(LocalizedStringKey(description))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -492,10 +659,11 @@ struct SettingsSection<Content: View, HeaderTrailing: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(AppTheme.elevatedSurface)
         .clipShape(.rect(cornerRadius: 10))
-        .overlay {
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(AppTheme.border)
-        }
+        .shadow(
+            color: AppTheme.brandBlue.opacity(0.035),
+            radius: 2,
+            y: 1
+        )
     }
 }
 
@@ -517,6 +685,7 @@ extension SettingsSection where HeaderTrailing == EmptyView {
 }
 
 struct TagSettingsFlowLayout: View {
+    @Environment(\.appLanguage) private var appLanguage
     let tags: [String]
     let onTagRemove: (String) -> Void
     @State private var hoveredTag: String? = nil
@@ -548,7 +717,13 @@ struct TagSettingsFlowLayout: View {
                     .onHover { isHovering in
                         hoveredTag = isHovering ? tag : nil
                     }
-                    .accessibilityLabel("Delete \(tag) tag")
+                    .accessibilityLabel(
+                        AppLocalization.format(
+                            "Delete %@ tag",
+                            language: appLanguage,
+                            arguments: tag
+                        )
+                    )
                 }
                 .foregroundStyle(AppTheme.brandBlue)
                 .background(AppTheme.selectedFill)
@@ -557,7 +732,14 @@ struct TagSettingsFlowLayout: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 4)
-        .alert("Delete tag \(selectedTag)?", isPresented: $showDeleteAlert) {
+        .alert(
+            AppLocalization.format(
+                "Delete tag %@?",
+                language: appLanguage,
+                arguments: selectedTag
+            ),
+            isPresented: $showDeleteAlert
+        ) {
             Button("Delete", role: .destructive) {
                 onTagRemove(selectedTag)
                 selectedTag = ""

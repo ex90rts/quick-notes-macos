@@ -52,6 +52,7 @@ protocol NotesRepository: AnyObject {
     func updateNote(_ note: Note) throws
     func deleteNote(id: UUID) throws
     func insertTag(_ tag: String) throws
+    func importNotes(_ notes: [Note], creatingTags tags: [String]) throws
     func deleteTag(_ tag: String) throws
     func reorderTags(_ tags: [String]) throws
 }
@@ -87,64 +88,90 @@ final class SwiftDataNotesRepository: NotesRepository {
     }
 
     func insertNote(_ note: Note) throws {
-        guard try noteRecord(id: note.id) == nil else {
-            throw NotesRepositoryError.duplicateNoteID(note.id)
-        }
+        try performWrite {
+            guard try noteRecord(id: note.id) == nil else {
+                throw NotesRepositoryError.duplicateNoteID(note.id)
+            }
 
-        modelContext.insert(Self.makeRecord(note))
-        try saveChanges()
+            modelContext.insert(Self.makeRecord(note))
+        }
     }
 
     func updateNote(_ note: Note) throws {
-        guard let record = try noteRecord(id: note.id) else {
-            throw NotesRepositoryError.noteNotFound(note.id)
-        }
+        try performWrite {
+            guard let record = try noteRecord(id: note.id) else {
+                throw NotesRepositoryError.noteNotFound(note.id)
+            }
 
-        record.title = note.title
-        record.content = note.content
-        record.tags = note.tags
-        record.timestamp = note.timestamp
-        record.isPinned = note.isPinned
-        try saveChanges()
+            record.title = note.title
+            record.content = note.content
+            record.tags = note.tags
+            record.timestamp = note.timestamp
+            record.isPinned = note.isPinned
+        }
     }
 
     func deleteNote(id: UUID) throws {
-        guard let record = try noteRecord(id: id) else { return }
-        modelContext.delete(record)
-        try saveChanges()
+        try performWrite {
+            guard let record = try noteRecord(id: id) else { return }
+            modelContext.delete(record)
+        }
     }
 
     func insertTag(_ tag: String) throws {
-        let records = try tagRecords()
-        guard !records.contains(where: { $0.name == tag }) else {
-            throw NotesRepositoryError.duplicateTag(tag)
-        }
+        try performWrite {
+            let records = try tagRecords()
+            guard !records.contains(where: { $0.name == tag }) else {
+                throw NotesRepositoryError.duplicateTag(tag)
+            }
 
-        modelContext.insert(TagRecord(name: tag, sortIndex: records.count))
-        try saveChanges()
+            modelContext.insert(TagRecord(name: tag, sortIndex: records.count))
+        }
+    }
+
+    func importNotes(_ notes: [Note], creatingTags tags: [String]) throws {
+        try performWrite {
+            let existingTagRecords = try tagRecords()
+            var existingTagNames = Set(existingTagRecords.map(\.name))
+            var nextSortIndex = existingTagRecords.count
+
+            for tag in tags where existingTagNames.insert(tag).inserted {
+                modelContext.insert(TagRecord(name: tag, sortIndex: nextSortIndex))
+                nextSortIndex += 1
+            }
+
+            for note in notes {
+                guard try noteRecord(id: note.id) == nil else {
+                    throw NotesRepositoryError.duplicateNoteID(note.id)
+                }
+                modelContext.insert(Self.makeRecord(note))
+            }
+        }
     }
 
     func deleteTag(_ tag: String) throws {
-        for record in try tagRecords().filter({ $0.name == tag }) {
-            modelContext.delete(record)
+        try performWrite {
+            for record in try tagRecords().filter({ $0.name == tag }) {
+                modelContext.delete(record)
+            }
+            for note in try modelContext.fetch(FetchDescriptor<NoteRecord>()) {
+                note.tags.removeAll { $0 == tag }
+            }
         }
-        for note in try modelContext.fetch(FetchDescriptor<NoteRecord>()) {
-            note.tags.removeAll { $0 == tag }
-        }
-        try saveChanges()
     }
 
     func reorderTags(_ tags: [String]) throws {
-        let positions = Dictionary(
-            uniqueKeysWithValues: tags.enumerated().map { ($1, $0) }
-        )
-        let records = try tagRecords()
-        let trailingOffset = tags.count
+        try performWrite {
+            let positions = Dictionary(
+                uniqueKeysWithValues: tags.enumerated().map { ($1, $0) }
+            )
+            let records = try tagRecords()
+            let trailingOffset = tags.count
 
-        for record in records {
-            record.sortIndex = positions[record.name] ?? trailingOffset + record.sortIndex
+            for record in records {
+                record.sortIndex = positions[record.name] ?? trailingOffset + record.sortIndex
+            }
         }
-        try saveChanges()
     }
 
     func isEmpty() throws -> Bool {
@@ -154,10 +181,11 @@ final class SwiftDataNotesRepository: NotesRepository {
 
     func seedDefaultTagsIfNeeded() throws {
         guard try isEmpty() else { return }
-        for (index, tag) in NotesDefaults.tags.enumerated() {
-            modelContext.insert(TagRecord(name: tag, sortIndex: index))
+        try performWrite {
+            for (index, tag) in NotesDefaults.tags.enumerated() {
+                modelContext.insert(TagRecord(name: tag, sortIndex: index))
+            }
         }
-        try saveChanges()
     }
 
     private func noteRecord(id: UUID) throws -> NoteRecord? {
@@ -180,6 +208,16 @@ final class SwiftDataNotesRepository: NotesRepository {
     private func saveChanges() throws {
         guard modelContext.hasChanges else { return }
         try modelContext.save()
+    }
+
+    private func performWrite(_ mutation: () throws -> Void) throws {
+        do {
+            try mutation()
+            try saveChanges()
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
     }
 
     private static func makeRecord(_ note: Note) -> NoteRecord {

@@ -11,11 +11,19 @@ struct ClipboardView: View {
     @FocusState private var isSearchFocused: Bool
 
     var body: some View {
+        let normalizedQuery = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let filteredItems = vm.filteredClipboardData(
+            matchingNormalizedQuery: normalizedQuery
+        )
+
         VStack(spacing: 0) {
             header
             Divider()
             filterBar
-            clipboardList
+            clipboardList(
+                items: filteredItems,
+                highlightQuery: normalizedQuery.isEmpty ? nil : normalizedQuery
+            )
         }
         .background(AppTheme.canvas)
         .frame(minWidth: 520, minHeight: 280)
@@ -95,7 +103,10 @@ struct ClipboardView: View {
         }
     }
 
-    private var clipboardList: some View {
+    private func clipboardList(
+        items: [ClipboardItem],
+        highlightQuery: String?
+    ) -> some View {
         Group {
             if vm.clipboardData.isEmpty {
                 VStack(alignment: .center, spacing: 8) {
@@ -107,7 +118,7 @@ struct ClipboardView: View {
                 }
                 .padding(12)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            } else if filteredClipboardData.isEmpty {
+            } else if items.isEmpty {
                 VStack(alignment: .center, spacing: 8) {
                     Text("No matching clipboard items.")
                         .foregroundStyle(.secondary)
@@ -126,10 +137,15 @@ struct ClipboardView: View {
                                 .id(Self.topAnchor)
 
                             LazyVStack(spacing: AppSpacing.small) {
-                                ForEach(filteredClipboardData) { item in
+                                ForEach(items) { item in
                                     ClipboardItemRow(
                                         item: item,
-                                        highlightQuery: effectiveSearchQuery
+                                        availableTags: vm.tags,
+                                        highlightQuery: highlightQuery,
+                                        onCopy: vm.copyClipboardItem,
+                                        onAddToNotes: vm.addNoteFromClipboard,
+                                        onRemove: vm.removeClipboardItem,
+                                        onNavigateToNotes: vm.navigateToNotesList
                                     )
                                 }
                             }
@@ -167,20 +183,17 @@ struct ClipboardView: View {
         }
     }
 
-    private var filteredClipboardData: [ClipboardItem] {
-        vm.filteredClipboardData(matching: searchQuery)
-    }
-
-    private var effectiveSearchQuery: String? {
-        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        return query.isEmpty ? nil : query
-    }
 }
 
 struct ClipboardItemRow: View {
-    @EnvironmentObject var vm: NotesViewModel
+    @Environment(\.appLanguage) private var appLanguage
     let item: ClipboardItem
+    let availableTags: [String]
     let highlightQuery: String?
+    let onCopy: (ClipboardItem) -> Void
+    let onAddToNotes: (String, String, Set<String>) -> Bool
+    let onRemove: (ClipboardItem) -> Void
+    let onNavigateToNotes: () -> Void
     @State private var showAddToNote = false
     @State private var didJustCopy = false
     @State private var isHovering = false
@@ -204,7 +217,7 @@ struct ClipboardItemRow: View {
                         systemImage: didJustCopy ? "checkmark" : "doc.on.doc",
                         accent: didJustCopy ? Color.green : Color.secondary
                     ) {
-                        vm.copyClipboardItem(item)
+                        onCopy(item)
                         didJustCopy = true
                         Task { @MainActor in
                             try? await Task.sleep(for: .seconds(2))
@@ -244,10 +257,6 @@ struct ClipboardItemRow: View {
         .padding(AppSpacing.medium)
         .background(AppTheme.elevatedSurface)
         .clipShape(.rect(cornerRadius: 9))
-        .overlay {
-            RoundedRectangle(cornerRadius: 9)
-                .stroke(AppTheme.border)
-        }
         .shadow(
             color: AppTheme.brandBlue.opacity(isHovering ? 0.10 : 0.035),
             radius: isHovering ? 7 : 2,
@@ -256,8 +265,15 @@ struct ClipboardItemRow: View {
         .onHover { isHovering = $0 }
         .animation(.easeOut(duration: 0.18), value: isHovering)
         .sheet(isPresented: $showAddToNote) {
-            AddNoteFromClipboardView(clipboardItem: item, isPresented: $showAddToNote)
-                .environmentObject(vm)
+            AddNoteFromClipboardView(
+                clipboardItem: item,
+                availableTags: availableTags,
+                isPresented: $showAddToNote,
+                language: appLanguage,
+                onAddToNotes: onAddToNotes,
+                onRemove: onRemove,
+                onNavigateToNotes: onNavigateToNotes
+            )
         }
     }
 
@@ -322,7 +338,7 @@ private struct ClipboardItemAction: View {
 
     var body: some View {
         Button(action: action) {
-            Label(title, systemImage: systemImage)
+            Label(LocalizedStringKey(title), systemImage: systemImage)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(accent)
                 .padding(.horizontal, 7)
@@ -333,7 +349,7 @@ private struct ClipboardItemAction: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
-        .accessibilityLabel(title)
+        .accessibilityLabel(Text(LocalizedStringKey(title)))
     }
 }
 
@@ -343,23 +359,41 @@ struct AddNoteFromClipboardView: View {
         case content
     }
 
-    @EnvironmentObject var vm: NotesViewModel
     let clipboardItem: ClipboardItem
+    let availableTags: [String]
     @Binding var isPresented: Bool
+    let language: SupportedAppLanguage
+    let onAddToNotes: (String, String, Set<String>) -> Bool
+    let onRemove: (ClipboardItem) -> Void
+    let onNavigateToNotes: () -> Void
     @State private var editedTitle = ""
     @State private var editedContent: String
     @State private var selectedTags: Set<String> = []
     @FocusState private var focusedField: Field?
 
-    init(clipboardItem: ClipboardItem, isPresented: Binding<Bool>) {
+    init(
+        clipboardItem: ClipboardItem,
+        availableTags: [String],
+        isPresented: Binding<Bool>,
+        language: SupportedAppLanguage,
+        onAddToNotes: @escaping (String, String, Set<String>) -> Bool,
+        onRemove: @escaping (ClipboardItem) -> Void,
+        onNavigateToNotes: @escaping () -> Void
+    ) {
         self.clipboardItem = clipboardItem
+        self.availableTags = availableTags
         self._isPresented = isPresented
+        self.language = language
+        self.onAddToNotes = onAddToNotes
+        self.onRemove = onRemove
+        self.onNavigateToNotes = onNavigateToNotes
         self._editedContent = State(initialValue: clipboardItem.content)
     }
 
     var body: some View {
         AppSheet(
             title: "Add to Note",
+            language: language,
             primaryActionTitle: "Add Note",
             isPrimaryActionEnabled: NoteContentPolicy.canSave(editedContent),
             minHeight: 440,
@@ -400,14 +434,14 @@ struct AddNoteFromClipboardView: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
 
-                    if vm.tags.isEmpty {
+                    if availableTags.isEmpty {
                         Text("No tags available")
                             .font(.system(size: 13))
                             .foregroundColor(.secondary)
                             .padding(.vertical, 8)
                     } else {
                         TagFlowLayout(
-                            tags: vm.tags,
+                            tags: availableTags,
                             selectedTags: selectedTags,
                             onTagToggle: { tag in
                                 if selectedTags.contains(tag) {
@@ -424,13 +458,9 @@ struct AddNoteFromClipboardView: View {
     }
 
     private func addNote() {
-        vm.addNoteFromClipboard(
-            title: editedTitle,
-            content: editedContent,
-            tags: selectedTags
-        )
-        vm.removeClipboardItem(clipboardItem)
-        vm.currentView = .notesList
+        guard onAddToNotes(editedTitle, editedContent, selectedTags) else { return }
+        onRemove(clipboardItem)
+        onNavigateToNotes()
         isPresented = false
     }
 }

@@ -21,10 +21,11 @@ A lightweight, Apple Silicon-native macOS menu bar notes app built with SwiftUI.
 
 ### Using Xcode
 
-1. Open Xcode
-2. File > Open, select the `quick-notes-macos` package directory
-3. Choose the `QuickNotes` scheme
-4. Run
+1. Open `QuickNotes.xcodeproj`
+2. Choose the shared `QuickNotes` scheme
+3. Run the app with `⌘R`, or run the test suite with `⌘U`
+
+The Xcode project and `Package.swift` reference the same source and test files.
 
 ### Using Terminal
 

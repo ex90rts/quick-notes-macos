@@ -17,7 +17,7 @@ final class ClipboardRecord {
 @MainActor
 protocol ClipboardRepository: AnyObject {
     func fetchItems() throws -> [ClipboardItem]
-    func upsertItem(_ item: ClipboardItem) throws
+    func upsertItem(_ item: ClipboardItem, limit: Int) throws
     func deleteItem(id: UUID) throws
     func deleteAllItems() throws
     func trimItems(to limit: Int) throws
@@ -39,48 +39,84 @@ final class SwiftDataClipboardRepository: ClipboardRepository {
         return try modelContext.fetch(descriptor).map(Self.makeItem)
     }
 
-    func upsertItem(_ item: ClipboardItem) throws {
-        let records = try modelContext.fetch(FetchDescriptor<ClipboardRecord>())
-        for record in records where record.id == item.id || record.content == item.content {
-            modelContext.delete(record)
+    func upsertItem(_ item: ClipboardItem, limit: Int) throws {
+        let itemID = item.id
+        let itemContent = item.content
+        let retainedCount = max(limit, 0)
+
+        try performWrite {
+            let duplicateDescriptor = FetchDescriptor<ClipboardRecord>(
+                predicate: #Predicate {
+                    $0.id == itemID || $0.content == itemContent
+                }
+            )
+            for record in try modelContext.fetch(duplicateDescriptor) {
+                modelContext.delete(record)
+            }
+
+            var overflowDescriptor = FetchDescriptor<ClipboardRecord>(
+                predicate: #Predicate {
+                    $0.id != itemID && $0.content != itemContent
+                },
+                sortBy: [SortDescriptor(\ClipboardRecord.timestamp, order: .reverse)]
+            )
+            overflowDescriptor.fetchOffset = max(retainedCount - 1, 0)
+            for record in try modelContext.fetch(overflowDescriptor) {
+                modelContext.delete(record)
+            }
+
+            if retainedCount > 0 {
+                modelContext.insert(Self.makeRecord(item))
+            }
         }
-        modelContext.insert(Self.makeRecord(item))
-        try saveChanges()
     }
 
     func deleteItem(id: UUID) throws {
-        let id = id
-        let descriptor = FetchDescriptor<ClipboardRecord>(
-            predicate: #Predicate { $0.id == id }
-        )
-        for record in try modelContext.fetch(descriptor) {
-            modelContext.delete(record)
+        try performWrite {
+            let id = id
+            let descriptor = FetchDescriptor<ClipboardRecord>(
+                predicate: #Predicate { $0.id == id }
+            )
+            for record in try modelContext.fetch(descriptor) {
+                modelContext.delete(record)
+            }
         }
-        try saveChanges()
     }
 
     func deleteAllItems() throws {
-        for record in try modelContext.fetch(FetchDescriptor<ClipboardRecord>()) {
-            modelContext.delete(record)
+        try performWrite {
+            for record in try modelContext.fetch(FetchDescriptor<ClipboardRecord>()) {
+                modelContext.delete(record)
+            }
         }
-        try saveChanges()
     }
 
     func trimItems(to limit: Int) throws {
-        let retainedCount = max(limit, 0)
-        let descriptor = FetchDescriptor<ClipboardRecord>(
-            sortBy: [SortDescriptor(\ClipboardRecord.timestamp, order: .reverse)]
-        )
-        let records = try modelContext.fetch(descriptor)
-        for record in records.dropFirst(retainedCount) {
-            modelContext.delete(record)
+        try performWrite {
+            let retainedCount = max(limit, 0)
+            var descriptor = FetchDescriptor<ClipboardRecord>(
+                sortBy: [SortDescriptor(\ClipboardRecord.timestamp, order: .reverse)]
+            )
+            descriptor.fetchOffset = retainedCount
+            for record in try modelContext.fetch(descriptor) {
+                modelContext.delete(record)
+            }
         }
-        try saveChanges()
     }
 
     private func saveChanges() throws {
         guard modelContext.hasChanges else { return }
         try modelContext.save()
+    }
+
+    private func performWrite(_ mutation: () throws -> Void) throws {
+        do {
+            try mutation()
+            try saveChanges()
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
     }
 
     private static func makeRecord(_ item: ClipboardItem) -> ClipboardRecord {

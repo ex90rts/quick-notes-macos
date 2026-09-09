@@ -2,10 +2,12 @@ import SwiftUI
 
 struct AboutView: View {
     @Environment(\.dismiss) private var dismiss
+    let language: SupportedAppLanguage
 
     var body: some View {
         AppSheet(
             title: "About",
+            language: language,
             minWidth: 400,
             minHeight: 320,
             closeAction: { dismiss() }
@@ -35,7 +37,11 @@ struct AboutView: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
 
-                Text("Version: \(getAppVersion()) (\(getBuildVersion()))")
+                Text(verbatim: AppLocalization.format(
+                    "Version: %@ (%@)",
+                    language: language,
+                    arguments: getAppVersion(), getBuildVersion()
+                ))
                     .font(.system(size: 12, design: .rounded))
                     .monospacedDigit()
                     .foregroundColor(.secondary)
@@ -48,15 +54,17 @@ struct AboutView: View {
 
     // Helper functions to get app info
     private func getAppVersion() -> String {
-        return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+        return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+            ?? AppLocalization.string("Unknown", language: language)
     }
 
     private func getBuildVersion() -> String {
-        return Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
+        return Bundle.main.infoDictionary?["CFBundleVersion"] as? String
+            ?? AppLocalization.string("Unknown", language: language)
     }
 
 }
 
 #Preview {
-    AboutView()
+    AboutView(language: .englishUS)
 }

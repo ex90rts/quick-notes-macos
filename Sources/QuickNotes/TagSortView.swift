@@ -3,12 +3,14 @@ import SwiftUI
 struct TagSortView: View {
   @EnvironmentObject var vm: NotesViewModel
   @Binding var isPresented: Bool
+  let language: SupportedAppLanguage
   @State private var sortableTags: [String] = []
   @State private var draggedTag: String?
 
   var body: some View {
     AppSheet(
       title: "Reorder Tags",
+      language: language,
       primaryActionTitle: "Save",
       minHeight: 400,
       closeAction: { isPresented = false },

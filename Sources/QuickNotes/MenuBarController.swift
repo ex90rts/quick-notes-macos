@@ -75,9 +75,10 @@ final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
         popover.animates = true
         popover.delegate = self
         let hostingController = NSHostingController(
-            rootView: ContentView()
-                .environmentObject(viewModel)
-                .environmentObject(preferences)
+            rootView: LocalizedAppContent(
+                viewModel: viewModel,
+                preferences: preferences
+            )
         )
         hostingController.preferredContentSize = contentSize
         popover.contentViewController = hostingController
@@ -169,5 +170,20 @@ final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
     func popoverDidClose(_ notification: Notification) {
         viewModel.showAddNote = false
         viewModel.showAbout = false
+    }
+}
+
+private struct LocalizedAppContent: View {
+    @ObservedObject var viewModel: NotesViewModel
+    @ObservedObject var preferences: AppPreferences
+
+    var body: some View {
+        let language = preferences.resolvedLanguage
+        ContentView()
+            .environmentObject(viewModel)
+            .environmentObject(preferences)
+            .environment(\.locale, language.locale)
+            .environment(\.appLanguage, language)
+            .id(language)
     }
 }

@@ -52,16 +52,122 @@ struct QuickNotesTests {
 
         let initialPreferences = AppPreferences(defaults: defaults)
         #expect(initialPreferences.menuBarIconStyle == .color)
-        #expect(initialPreferences.panelSize == .small)
+        #expect(initialPreferences.panelSize == .medium)
+        #expect(initialPreferences.displayLanguage == .automatic)
         #expect(PanelSize.small.contentSize == CGSize(width: 520, height: 600))
 
         initialPreferences.menuBarIconStyle = .monochrome
         initialPreferences.panelSize = .large
+        initialPreferences.displayLanguage = .traditionalChinese
         let restoredPreferences = AppPreferences(defaults: defaults)
         #expect(restoredPreferences.menuBarIconStyle == .monochrome)
         #expect(restoredPreferences.panelSize == .large)
+        #expect(restoredPreferences.displayLanguage == .traditionalChinese)
         #expect(PanelSize.medium.contentSize == CGSize(width: 620, height: 720))
         #expect(restoredPreferences.panelSize.contentSize == CGSize(width: 720, height: 840))
+    }
+
+    @Test("Automatic display language matches supported system languages")
+    func automaticDisplayLanguageResolution() {
+        #expect(
+            AppLanguagePreference.automatic.resolvedLanguage(
+                preferredLanguages: ["zh-Hans-CN"]
+            ) == .simplifiedChinese
+        )
+        #expect(
+            AppLanguagePreference.automatic.resolvedLanguage(
+                preferredLanguages: ["zh-TW"]
+            ) == .traditionalChinese
+        )
+        #expect(
+            AppLanguagePreference.automatic.resolvedLanguage(
+                preferredLanguages: ["zh-Hant-HK"]
+            ) == .traditionalChinese
+        )
+        #expect(
+            AppLanguagePreference.automatic.resolvedLanguage(
+                preferredLanguages: ["en-US"]
+            ) == .englishUS
+        )
+        #expect(
+            AppLanguagePreference.automatic.resolvedLanguage(
+                preferredLanguages: ["fr-FR", "zh-Hans"]
+            ) == .englishUS
+        )
+        #expect(
+            AppLanguagePreference.automatic.resolvedLanguage(
+                preferredLanguages: []
+            ) == .englishUS
+        )
+    }
+
+    @Test("Explicit display languages override the system language")
+    func explicitDisplayLanguageResolution() {
+        #expect(
+            AppLanguagePreference.simplifiedChinese.resolvedLanguage(
+                preferredLanguages: ["en-US"]
+            ) == .simplifiedChinese
+        )
+        #expect(
+            AppLanguagePreference.traditionalChinese.resolvedLanguage(
+                preferredLanguages: ["en-US"]
+            ) == .traditionalChinese
+        )
+        #expect(
+            AppLanguagePreference.englishUS.resolvedLanguage(
+                preferredLanguages: ["zh-CN"]
+            ) == .englishUS
+        )
+    }
+
+    @Test("App sheet keeps its explicitly supplied display language")
+    @MainActor
+    func appSheetLanguageContext() {
+        let sheet = AppSheet(
+            title: "About",
+            language: .traditionalChinese,
+            minHeight: 120,
+            closeAction: {}
+        ) {
+            EmptyView()
+        }
+
+        #expect(sheet.language == .traditionalChinese)
+        #expect(sheet.language.locale.identifier == "zh-Hant")
+    }
+
+    @Test("Every supported language ships the same localization keys")
+    func localizationResourcesAreComplete() throws {
+        let projectRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let resourcesRoot = projectRoot.appendingPathComponent("Resources")
+
+        func strings(for language: SupportedAppLanguage) throws -> [String: String] {
+            let url = resourcesRoot
+                .appendingPathComponent("\(language.rawValue).lproj")
+                .appendingPathComponent("Localizable.strings")
+            let data = try Data(contentsOf: url)
+            return try #require(
+                PropertyListSerialization.propertyList(from: data, format: nil)
+                    as? [String: String]
+            )
+        }
+
+        let english = try strings(for: .englishUS)
+        let simplifiedChinese = try strings(for: .simplifiedChinese)
+        let traditionalChinese = try strings(for: .traditionalChinese)
+
+        #expect(Set(english.keys) == Set(simplifiedChinese.keys))
+        #expect(Set(english.keys) == Set(traditionalChinese.keys))
+        #expect(simplifiedChinese["Display Language"] == "显示语言")
+        #expect(traditionalChinese["Display Language"] == "顯示語言")
+        #expect(english["Display Language"] == "Display Language")
+        #expect(simplifiedChinese["Automatic"] == "跟随系统")
+        #expect(traditionalChinese["Automatic"] == "跟隨系統")
+        #expect(english["Automatic"] == "Follow System")
+        #expect(simplifiedChinese["Adjust the panel size."] == "调整面板大小。")
     }
 
     @Test("Menu bar icon styles use their supplied image resources")
@@ -96,15 +202,142 @@ struct QuickNotesTests {
         #expect(TitleSanitizer.sanitize(" \n\t ") == nil)
     }
 
-    @Test("Only complete HTTP and HTTPS note contents become links")
+    @Test("Complete HTTP and HTTPS links are extracted from surrounding text")
     func noteContentLinks() {
         #expect(NoteContentLink.url(from: "https://example.com/path?q=notes")?.absoluteString == "https://example.com/path?q=notes")
         #expect(NoteContentLink.url(from: "  http://localhost:8080/note  ")?.absoluteString == "http://localhost:8080/note")
-        #expect(NoteContentLink.url(from: "See https://example.com") == nil)
-        #expect(NoteContentLink.url(from: "https://example.com trailing") == nil)
+        #expect(NoteContentLink.url(from: "See https://example.com")?.absoluteString == "https://example.com")
+        #expect(NoteContentLink.url(from: "https://example.com trailing")?.absoluteString == "https://example.com")
         #expect(NoteContentLink.url(from: "example.com") == nil)
         #expect(NoteContentLink.url(from: "file:///tmp/note") == nil)
         #expect(NoteContentLink.url(from: "https:///missing-host") == nil)
+
+        let content = "See https://example.com/a, then http://localhost:8080/note."
+        let extractedLinks = NoteContentLink.matches(in: content)
+        #expect(extractedLinks.map { String(content[$0.range]) } == [
+            "https://example.com/a",
+            "http://localhost:8080/note"
+        ])
+    }
+
+    @Test("Markdown content recognizes custom todos and aligned tables")
+    func markdownContentBlocks() {
+        let content = """
+        # Plan
+        [] **Draft** the proposal
+        [-] Review https://example.com/spec
+
+        | Item | Owner | Score |
+        | :--- | :---: | ---: |
+        | UI | Amy | 9 |
+        | API | Bo | 8 |
+        """
+
+        let blocks = NoteContentParser.blocks(from: content)
+        #expect(blocks.count == 4)
+        #expect(blocks[0] == .heading(level: 1, text: "Plan"))
+        #expect(blocks[1] == .todo(NoteTodoItem(
+            lineIndex: 1,
+            text: "**Draft** the proposal",
+            isCompleted: false
+        )))
+        #expect(blocks[2] == .todo(NoteTodoItem(
+            lineIndex: 2,
+            text: "Review https://example.com/spec",
+            isCompleted: true
+        )))
+
+        guard case .table(let table) = blocks[3] else {
+            Issue.record("Expected the final Markdown block to be a table")
+            return
+        }
+        #expect(table.headers == ["Item", "Owner", "Score"])
+        #expect(table.alignments == [.leading, .center, .trailing])
+        #expect(table.rows == [["UI", "Amy", "9"], ["API", "Bo", "8"]])
+    }
+
+    @Test("Markdown content recognizes all basic block syntax")
+    func basicMarkdownBlocks() {
+        let content = """
+        # Primary heading
+
+        Secondary heading
+        ---
+
+        Paragraph with **bold**, *italic*, `code`, and [a link](https://example.com).
+
+        > A quoted **sentence**.
+        > A second line.
+
+        - First bullet
+          - Nested bullet
+
+        3. Third item
+        4. Fourth item
+
+        ***
+
+        ```swift
+        let answer = 42
+        print(answer)
+        ```
+        """
+
+        let blocks = NoteContentParser.blocks(from: content)
+        #expect(blocks.count == 8)
+        #expect(blocks[0] == .heading(level: 1, text: "Primary heading"))
+        #expect(blocks[1] == .heading(level: 2, text: "Secondary heading"))
+        #expect(blocks[2] == .paragraph(
+            "Paragraph with **bold**, *italic*, `code`, and [a link](https://example.com)."
+        ))
+        #expect(blocks[3] == .blockQuote("A quoted **sentence**.\nA second line."))
+        #expect(blocks[4] == .list(NoteMarkdownList(
+            isOrdered: false,
+            startingNumber: 1,
+            items: [
+                NoteMarkdownListItem(text: "First bullet", indentationLevel: 0),
+                NoteMarkdownListItem(text: "Nested bullet", indentationLevel: 1)
+            ]
+        )))
+        #expect(blocks[5] == .list(NoteMarkdownList(
+            isOrdered: true,
+            startingNumber: 3,
+            items: [
+                NoteMarkdownListItem(text: "Third item", indentationLevel: 0),
+                NoteMarkdownListItem(text: "Fourth item", indentationLevel: 0)
+            ]
+        )))
+        #expect(blocks[6] == .thematicBreak)
+        #expect(blocks[7] == .codeBlock(NoteMarkdownCodeBlock(
+            language: "swift",
+            code: "let answer = 42\nprint(answer)"
+        )))
+    }
+
+    @Test("Todo toggles only replace the selected line marker")
+    func todoContentToggling() {
+        let content = "  [] First\n[-] Second\nPlain text\n"
+        let completed = NoteTodo.togglingItem(in: content, at: 0)
+        #expect(completed == "  [-] First\n[-] Second\nPlain text\n")
+        guard let completed else { return }
+        #expect(NoteTodo.togglingItem(in: completed, at: 1) == "  [-] First\n[] Second\nPlain text\n")
+        #expect(NoteTodo.togglingItem(in: content, at: 2) == nil)
+        #expect(NoteTodo.item(from: "[]missing-space", lineIndex: 0) == nil)
+    }
+
+    @Test("Only top-level JSON objects and arrays use formatted JSON rendering")
+    func jsonContentDetection() {
+        let object = NoteJSON.formattedString(
+            from: #" {"z":1,"markdown":"**bold**","url":"https://example.com/a"} "#
+        )
+        #expect(object?.contains("\n") == true)
+        #expect(object?.contains(#""url" : "https://example.com/a""#) == true)
+        #expect(object?.first == "{")
+        #expect(NoteJSON.formattedString(from: #"[true,null,{"a":2}]"#) != nil)
+        #expect(NoteJSON.formattedString(from: #""plain JSON string""#) == nil)
+        #expect(NoteJSON.formattedString(from: "123") == nil)
+        #expect(NoteJSON.formattedString(from: "{not JSON}") == nil)
+        #expect(NoteJSON.formattedString(from: "```json\n{}\n```") == nil)
     }
 
     @Test("Virtual note windows keep five items above and below the viewport")
@@ -126,12 +359,61 @@ struct QuickNotesTests {
         #expect(window.leadingHeight + renderedHeight + window.trailingHeight == 10_792)
     }
 
+    @Test("Virtual note windows preserve total height with mixed row heights")
+    func mixedHeightVirtualNoteWindow() {
+        let itemHeights: [CGFloat] = [80, 140, 96, 180, 72, 124, 160]
+        let spacing: CGFloat = 8
+        let window = NoteListVirtualizer.window(
+            itemHeights: itemHeights,
+            spacing: spacing,
+            visibleRange: 240..<430,
+            overscan: 1
+        )
+        let renderedHeight = itemHeights[window.range].reduce(0, +)
+            + CGFloat(max(window.range.count - 1, 0)) * spacing
+        let totalHeight = itemHeights.reduce(0, +)
+            + CGFloat(itemHeights.count - 1) * spacing
+
+        #expect(window.range == 1..<5)
+        #expect(window.leadingHeight + renderedHeight + window.trailingHeight == totalHeight)
+    }
+
     @Test("Back to top appears after entering the second viewport")
     func scrollToTopThreshold() {
         #expect(!ScrollToTopBehavior.shouldShow(scrollOffset: 300, viewportHeight: 300))
         #expect(ScrollToTopBehavior.shouldShow(scrollOffset: 301, viewportHeight: 300))
         #expect(!ScrollToTopBehavior.shouldShow(scrollOffset: -20, viewportHeight: 300))
         #expect(!ScrollToTopBehavior.shouldShow(scrollOffset: 301, viewportHeight: 0))
+    }
+
+    @Test("Collapsed note content renders up to 120 points including padding")
+    func collapsedNoteContentHeight() {
+        #expect(NoteContentLayout.collapsedViewportHeight == 100)
+        #expect(NoteContentLayout.containerPadding == 10)
+        #expect(NoteContentLayout.collapsedContainerHeight == 120)
+    }
+
+    @Test("Single-line tag and search filters share the same height")
+    func notesFilterBarHeight() {
+        #expect(NotesFilterBarLayout.controlHeight == 28)
+        #expect(NotesFilterBarLayout.verticalPadding == 10)
+        #expect(NotesFilterBarLayout.singleLineHeight == 48)
+        #expect(NotesFilterBarLayout.shadowHeight == 10)
+    }
+
+    @Test("Note actions and Settings dividers use the intended visual metrics")
+    func refinedSettingsAndNoteCardMetrics() {
+        #expect(NoteCardLayout.actionSpacing == 16)
+        #expect(AppControlMetrics.formControlHeight == 30)
+        #expect(SettingsDividerMetrics.dashPattern == [4, 3])
+    }
+
+    @Test("Notes filter bar shadow appears only after scrolling more than 10 points")
+    func notesFilterBarShadowThreshold() {
+        #expect(!NotesFilterBarShadowBehavior.shouldShow(scrollOffset: -1))
+        #expect(!NotesFilterBarShadowBehavior.shouldShow(scrollOffset: 0))
+        #expect(!NotesFilterBarShadowBehavior.shouldShow(scrollOffset: 10))
+        #expect(NotesFilterBarShadowBehavior.shouldShow(scrollOffset: 10.1))
     }
 
     @Test("Saving a link automatically applies an available Link tag")
@@ -146,9 +428,10 @@ struct QuickNotesTests {
             monitorsClipboard: false
         )
 
-        viewModel.newNoteContent = "https://example.com/new"
-        viewModel.newNoteTags = ["Work"]
-        viewModel.addNote()
+        viewModel.addNote(
+            content: "Read https://example.com/new before tomorrow",
+            tags: ["Work"]
+        )
         let addedNote = try #require(viewModel.notes.first)
         #expect(addedNote.tags == ["Work", "Link"])
 
@@ -164,11 +447,42 @@ struct QuickNotesTests {
         viewModel.updateNote(
             addedNote,
             title: "",
-            content: "https://example.com/edited",
+            content: "Edited text with https://example.com/edited inside",
             tags: []
         )
         let editedNote = try #require(viewModel.notes.first { $0.id == addedNote.id })
         #expect(editedNote.tags == ["Link"])
+    }
+
+    @Test("Toggling a rendered todo persists immediately without changing note metadata")
+    @MainActor
+    func persistedTodoToggle() throws {
+        let note = Note(
+            id: UUID(),
+            title: "Plan",
+            content: "[] First\n[-] Second",
+            tags: ["Work"],
+            timestamp: Date(timeIntervalSince1970: 100),
+            isPinned: true,
+            expanded: true
+        )
+        let repository = CountingNotesRepository(notes: [note], tags: ["Work"])
+        let viewModel = try NotesViewModel(
+            repository: repository,
+            clipboardRepository: makeClipboardRepository(),
+            monitorsClipboard: false
+        )
+
+        viewModel.toggleTodo(in: note, at: 0)
+
+        let updatedNote = try #require(viewModel.notes.first)
+        #expect(updatedNote.content == "[-] First\n[-] Second")
+        #expect(updatedNote.title == note.title)
+        #expect(updatedNote.tags == note.tags)
+        #expect(updatedNote.timestamp == note.timestamp)
+        #expect(updatedNote.isPinned)
+        #expect(updatedNote.expanded)
+        #expect(repository.notes.first?.content == updatedNote.content)
     }
 
     @Test("A link is not tagged when no Link tag exists")
@@ -180,8 +494,7 @@ struct QuickNotesTests {
             clipboardRepository: makeClipboardRepository(),
             monitorsClipboard: false
         )
-        viewModel.newNoteContent = "https://example.com"
-        viewModel.addNote()
+        viewModel.addNote(content: "https://example.com", tags: [])
         #expect(viewModel.notes.first?.tags == [])
     }
 
@@ -423,22 +736,29 @@ struct QuickNotesTests {
                 content: "Repeated content",
                 timestamp: Date(timeIntervalSince1970: 300)
             )
+            let limitedItem = ClipboardItem(
+                id: UUID(),
+                content: "Newest limited item",
+                timestamp: Date(timeIntervalSince1970: 400)
+            )
 
             do {
                 let container = try makeModelContainer(storeURL: storeURL)
                 let repository = SwiftDataClipboardRepository(modelContainer: container)
-                try repository.upsertItem(firstCopy)
-                try repository.upsertItem(secondItem)
-                try repository.upsertItem(latestCopy)
+                try repository.upsertItem(firstCopy, limit: 100)
+                try repository.upsertItem(secondItem, limit: 100)
+                try repository.upsertItem(latestCopy, limit: 100)
 
                 #expect(try repository.fetchItems().map(\.id) == [latestCopy.id, secondItem.id])
                 try repository.trimItems(to: 1)
                 #expect(try repository.fetchItems().map(\.id) == [latestCopy.id])
+                try repository.upsertItem(limitedItem, limit: 1)
+                #expect(try repository.fetchItems().map(\.id) == [limitedItem.id])
             }
 
             let reopenedContainer = try makeModelContainer(storeURL: storeURL)
             let reopenedRepository = SwiftDataClipboardRepository(modelContainer: reopenedContainer)
-            #expect(try reopenedRepository.fetchItems().map(\.id) == [latestCopy.id])
+            #expect(try reopenedRepository.fetchItems().map(\.id) == [limitedItem.id])
         }
     }
 
@@ -520,24 +840,97 @@ struct QuickNotesTests {
             monitorsClipboard: false
         )
 
-        viewModel.newNoteContent = "Typed content"
-        viewModel.newNoteTags = ["Work"]
-        viewModel.addNote()
+        viewModel.addNote(content: "Typed content", tags: ["Work"])
         let typedNote = try #require(viewModel.notes.first {
             $0.content == "Typed content"
         })
         #expect(typedNote.tags == ["Work"])
 
-        viewModel.newNoteContent = "https://example.com/pasted"
-        viewModel.newNoteTags = ["Work"]
-        viewModel.addNote(contentSource: .clipboard)
+        viewModel.addNote(
+            content: "https://example.com/pasted",
+            tags: ["Work"],
+            contentSource: .clipboard
+        )
         let pastedNote = try #require(viewModel.notes.first {
             $0.content == "https://example.com/pasted"
         })
         #expect(pastedNote.tags == ["Work", "Clipboard", "Link"])
     }
 
-    @Test("Markdown export includes title, metadata, and untitled notes")
+    @Test("Successful writes update view-model caches without refetching")
+    @MainActor
+    func incrementalViewModelUpdates() throws {
+        let initialNote = Note(
+            id: UUID(),
+            content: "Existing note",
+            tags: ["Work"],
+            timestamp: Date(timeIntervalSince1970: 10),
+            expanded: false
+        )
+        let notesRepository = CountingNotesRepository(
+            notes: [initialNote],
+            tags: ["Work"]
+        )
+        let clipboardRepository = CountingClipboardRepository()
+        let viewModel = try NotesViewModel(
+            repository: notesRepository,
+            clipboardRepository: clipboardRepository,
+            monitorsClipboard: false
+        )
+
+        #expect(viewModel.addNote(content: "New note", tags: ["Work"]))
+        let addedNote = try #require(viewModel.notes.first { $0.id != initialNote.id })
+        viewModel.togglePin(addedNote)
+        viewModel.updateNote(
+            addedNote,
+            title: "Updated",
+            content: "Updated note",
+            tags: ["Work"]
+        )
+        viewModel.deleteNote(initialNote)
+        viewModel.tagInput = "Ideas"
+        viewModel.addTag()
+        viewModel.removeTag("Work")
+        viewModel.addClipboardNote(content: "Clipboard item")
+        let clipboardItem = try #require(viewModel.clipboardData.first)
+        viewModel.removeClipboardItem(clipboardItem)
+
+        #expect(notesRepository.fetchNotesCount == 1)
+        #expect(notesRepository.fetchTagsCount == 1)
+        #expect(clipboardRepository.fetchItemsCount == 1)
+        #expect(viewModel.notes.map(\.content) == ["Updated note"])
+        #expect(viewModel.tags == ["Ideas"])
+        #expect(viewModel.clipboardData.isEmpty)
+    }
+
+    @Test("Failed writes refetch only for recovery and keep caches consistent")
+    @MainActor
+    func failedWriteRecovery() throws {
+        let initialNote = Note(
+            id: UUID(),
+            content: "Existing note",
+            tags: [],
+            timestamp: Date(timeIntervalSince1970: 10),
+            expanded: false
+        )
+        let notesRepository = CountingNotesRepository(notes: [initialNote])
+        let clipboardRepository = CountingClipboardRepository()
+        let viewModel = try NotesViewModel(
+            repository: notesRepository,
+            clipboardRepository: clipboardRepository,
+            monitorsClipboard: false
+        )
+
+        notesRepository.failNextWrite = true
+        #expect(!viewModel.addNote(content: "Will fail", tags: []))
+
+        #expect(viewModel.notes == [initialNote])
+        #expect(notesRepository.fetchNotesCount == 2)
+        #expect(notesRepository.fetchTagsCount == 2)
+        #expect(viewModel.persistenceError != nil)
+    }
+
+    @Test("Markdown export wraps note content in transfer markers")
     func markdownExport() {
         let notes = [
             Note(
@@ -565,9 +958,137 @@ struct QuickNotesTests {
         #expect(markdown.contains("# Quick Notes"))
         #expect(markdown.contains("## Project plan"))
         #expect(markdown.contains("- Tags: Work, Ideas"))
-        #expect(markdown.contains("First line\n\nSecond line"))
+        #expect(markdown.contains(
+            "<!-- note-content:start -->\nFirst line\n\nSecond line\n<!-- note-content:end -->"
+        ))
         #expect(markdown.contains("## Note 2"))
-        #expect(markdown.hasSuffix("Without a title\n"))
+        #expect(markdown.contains("<!-- note-title:untitled -->"))
+        #expect(markdown.hasSuffix(
+            "<!-- note-content:start -->\nWithout a title\n<!-- note-content:end -->\n"
+        ))
+    }
+
+    @Test("Markdown export and import preserve migration fields and arbitrary Markdown")
+    func markdownImportRoundTrip() throws {
+        let sourceNotes = [
+            Note(
+                id: UUID(),
+                title: "Road-map [v2]",
+                content: "# Heading\n\n---\n\n<!-- note-content:end -->\nStill content",
+                tags: ["Work", "Long-Term"],
+                timestamp: Date(timeIntervalSince1970: 100),
+                expanded: false
+            ),
+            Note(
+                id: UUID(),
+                content: "Untitled **Markdown**",
+                tags: [],
+                timestamp: Date(timeIntervalSince1970: 50),
+                expanded: false
+            )
+        ]
+
+        let markdown = MarkdownExporter.document(
+            notes: sourceNotes,
+            exportedAt: Date(timeIntervalSince1970: 200)
+        )
+        let importedNotes = try MarkdownImporter.notes(from: markdown)
+
+        #expect(importedNotes.count == 2)
+        #expect(importedNotes[0].title == sourceNotes[0].title)
+        #expect(importedNotes[0].content == sourceNotes[0].content)
+        #expect(importedNotes[0].tags == sourceNotes[0].tags)
+        #expect(importedNotes[0].timestamp == sourceNotes[0].timestamp)
+        #expect(importedNotes[1].title == nil)
+        #expect(importedNotes[1].content == sourceNotes[1].content)
+        #expect(importedNotes[1].timestamp == sourceNotes[1].timestamp)
+    }
+
+    @Test("Markdown import rejects documents without content markers")
+    func markdownImportRequiresContentMarkers() {
+        let malformedDocument = """
+        # Quick Notes
+
+        Exported: 1970-01-01T00:00:02Z
+
+        ---
+
+        ## Broken note
+
+        - Created: 1970-01-01T00:00:01Z
+        - Tags: None
+
+        Unmarked content
+        """
+
+        #expect(throws: MarkdownImportError.self) {
+            try MarkdownImporter.notes(from: malformedDocument)
+        }
+    }
+
+    @Test("Markdown import merges by Created, skips matching content, and creates tags")
+    @MainActor
+    func markdownImportMerge() throws {
+        let existingNote = Note(
+            id: UUID(),
+            title: "Same",
+            content: "Duplicate body",
+            tags: ["Work"],
+            timestamp: Date(timeIntervalSince1970: 100),
+            expanded: false
+        )
+        let repository = CountingNotesRepository(
+            notes: [existingNote],
+            tags: ["Work"]
+        )
+        let viewModel = try NotesViewModel(
+            repository: repository,
+            clipboardRepository: makeClipboardRepository(),
+            monitorsClipboard: false
+        )
+        let importCandidates = [
+            Note(
+                id: UUID(),
+                title: "Newest",
+                content: "New body",
+                tags: ["Travel"],
+                timestamp: Date(timeIntervalSince1970: 200),
+                expanded: false
+            ),
+            Note(
+                id: UUID(),
+                title: "Same",
+                content: "Duplicate body",
+                tags: ["IgnoredTag"],
+                timestamp: Date(timeIntervalSince1970: 150),
+                expanded: false
+            ),
+            Note(
+                id: UUID(),
+                title: nil,
+                content: "Old body",
+                tags: ["Work", "Archive"],
+                timestamp: Date(timeIntervalSince1970: 50),
+                expanded: false
+            )
+        ]
+        let document = MarkdownExporter.document(
+            notes: importCandidates,
+            exportedAt: Date(timeIntervalSince1970: 300)
+        )
+
+        let result = try viewModel.importMarkdownDocument(document)
+
+        #expect(result == NoteImportResult(importedCount: 2, skippedCount: 1))
+        #expect(viewModel.notes.map(\.timestamp) == [
+            Date(timeIntervalSince1970: 200),
+            Date(timeIntervalSince1970: 100),
+            Date(timeIntervalSince1970: 50)
+        ])
+        #expect(viewModel.tags == ["Work", "Travel", "Archive"])
+        #expect(!viewModel.tags.contains("IgnoredTag"))
+        #expect(repository.notes == viewModel.notes)
+        #expect(repository.tags == viewModel.tags)
     }
 
     @MainActor
@@ -618,6 +1139,115 @@ struct QuickNotesTests {
 }
 
 @MainActor
+private final class CountingNotesRepository: NotesRepository {
+    var notes: [Note]
+    var tags: [String]
+    var fetchNotesCount = 0
+    var fetchTagsCount = 0
+    var failNextWrite = false
+
+    init(notes: [Note] = [], tags: [String] = []) {
+        self.notes = notes
+        self.tags = tags
+    }
+
+    func fetchNotes() throws -> [Note] {
+        fetchNotesCount += 1
+        return notes
+    }
+
+    func fetchTags() throws -> [String] {
+        fetchTagsCount += 1
+        return tags
+    }
+
+    func insertNote(_ note: Note) throws {
+        try checkForFailure()
+        notes = NoteOrdering.inserting(note, into: notes)
+    }
+
+    func updateNote(_ note: Note) throws {
+        try checkForFailure()
+        notes = NoteOrdering.replacingAndReordering(note, in: notes)
+    }
+
+    func deleteNote(id: UUID) throws {
+        try checkForFailure()
+        notes.removeAll { $0.id == id }
+    }
+
+    func insertTag(_ tag: String) throws {
+        try checkForFailure()
+        tags.append(tag)
+    }
+
+    func importNotes(_ notes: [Note], creatingTags tags: [String]) throws {
+        try checkForFailure()
+        for tag in tags where !self.tags.contains(tag) {
+            self.tags.append(tag)
+        }
+        for note in notes {
+            self.notes = NoteOrdering.inserting(note, into: self.notes)
+        }
+    }
+
+    func deleteTag(_ tag: String) throws {
+        try checkForFailure()
+        tags.removeAll { $0 == tag }
+        notes = notes.map { note in
+            var note = note
+            note.tags.removeAll { $0 == tag }
+            return note
+        }
+    }
+
+    func reorderTags(_ tags: [String]) throws {
+        try checkForFailure()
+        let reorderedTags = Set(tags)
+        self.tags = tags + self.tags.filter { !reorderedTags.contains($0) }
+    }
+
+    private func checkForFailure() throws {
+        guard failNextWrite else { return }
+        failNextWrite = false
+        throw CountingRepositoryError.writeFailed
+    }
+}
+
+@MainActor
+private final class CountingClipboardRepository: ClipboardRepository {
+    var items: [ClipboardItem] = []
+    var fetchItemsCount = 0
+
+    func fetchItems() throws -> [ClipboardItem] {
+        fetchItemsCount += 1
+        return items
+    }
+
+    func upsertItem(_ item: ClipboardItem, limit: Int) throws {
+        items.removeAll { $0.id == item.id || $0.content == item.content }
+        items.insert(item, at: 0)
+        items = Array(items.prefix(max(limit, 0)))
+    }
+
+    func deleteItem(id: UUID) throws {
+        items.removeAll { $0.id == id }
+    }
+
+    func deleteAllItems() throws {
+        items.removeAll()
+    }
+
+    func trimItems(to limit: Int) throws {
+        items = Array(items.prefix(max(limit, 0)))
+    }
+}
+
+private enum CountingRepositoryError: Error {
+    case writeFailed
+}
+
+@MainActor
 private struct AddNoteFocusTestHost: View {
     @ObservedObject var viewModel: NotesViewModel
     @State private var isSheetPresented = false
@@ -626,7 +1256,7 @@ private struct AddNoteFocusTestHost: View {
         Color.clear
             .frame(width: 520, height: 600)
             .sheet(isPresented: $isSheetPresented) {
-                AddNoteView()
+                AddNoteView(language: .englishUS)
                     .environmentObject(viewModel)
             }
             .onAppear {

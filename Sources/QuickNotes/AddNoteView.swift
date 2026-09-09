@@ -127,14 +127,19 @@ struct AddNoteView: View {
 
     @EnvironmentObject var vm: NotesViewModel
     @Environment(\.dismiss) private var dismiss
+    let language: SupportedAppLanguage
     @FocusState private var focusedField: Field?
+    @State private var title = ""
+    @State private var content = ""
+    @State private var selectedTags: Set<String> = []
     @State private var contentSource: NoteContentSource = .manual
 
     var body: some View {
         AppSheet(
             title: "New Note",
+            language: language,
             primaryActionTitle: "Save",
-            isPrimaryActionEnabled: NoteContentPolicy.canSave(vm.newNoteContent),
+            isPrimaryActionEnabled: NoteContentPolicy.canSave(content),
             minHeight: 440,
             closeAction: { dismiss() },
             cancelAction: cancel,
@@ -145,7 +150,7 @@ struct AddNoteView: View {
                     Text("Title (Optional)")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
-                    TextField("Give it a short title, or leave it blank", text: $vm.newNoteTitle)
+                    TextField("Give it a short title, or leave it blank", text: $title)
                         .textFieldStyle(.plain)
                         .focused($focusedField, equals: .title)
                         .padding(.horizontal, 9)
@@ -158,7 +163,7 @@ struct AddNoteView: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
                     InitiallyFocusedTextEditor(
-                        text: $vm.newNoteContent,
+                        text: $content,
                         onFocusChange: { isFocused in
                             if isFocused {
                                 focusedField = .content
@@ -176,7 +181,7 @@ struct AddNoteView: View {
                             guard let clipboardString = NSPasteboard.general.string(forType: .string),
                                 !vm.cleanContent(clipboardString).isEmpty
                             else { return }
-                            vm.newNoteContent = clipboardString
+                            content = clipboardString
                             contentSource = .clipboard
                         }
                         .buttonStyle(.link)
@@ -184,7 +189,7 @@ struct AddNoteView: View {
 
                         Spacer()
 
-                        NoteContentLengthHint(content: vm.newNoteContent)
+                        NoteContentLengthHint(content: content)
                     }
                 }
 
@@ -201,12 +206,12 @@ struct AddNoteView: View {
                     } else {
                         TagFlowLayout(
                             tags: vm.tags,
-                            selectedTags: vm.newNoteTags,
+                            selectedTags: selectedTags,
                             onTagToggle: { tag in
-                                if vm.newNoteTags.contains(tag) {
-                                    vm.newNoteTags.remove(tag)
+                                if selectedTags.contains(tag) {
+                                    selectedTags.remove(tag)
                                 } else {
-                                    vm.newNoteTags.insert(tag)
+                                    selectedTags.insert(tag)
                                 }
                             }
                         )
@@ -217,18 +222,19 @@ struct AddNoteView: View {
     }
 
     private func save() {
-        vm.addNote(contentSource: contentSource)
+        guard vm.addNote(
+            title: title,
+            content: content,
+            tags: selectedTags,
+            contentSource: contentSource
+        ) else { return }
         if !vm.selectedTagFilter.isEmpty {
             vm.selectedTagFilter = ""
         }
-        vm.showAddNote = false
         dismiss()
     }
 
     private func cancel() {
-        vm.newNoteTitle = ""
-        vm.newNoteContent = ""
-        vm.newNoteTags.removeAll()
         dismiss()
     }
 }

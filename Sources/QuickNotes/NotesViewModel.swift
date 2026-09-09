@@ -8,6 +8,16 @@ enum NoteContentSource {
     case clipboard
 }
 
+private struct NoteImportIdentity: Hashable {
+    let title: String?
+    let content: String
+
+    init(note: Note) {
+        title = note.title
+        content = note.content
+    }
+}
+
 @MainActor
 final class NotesViewModel: ObservableObject {
     static let maximumPinnedNotes = 3
@@ -17,9 +27,6 @@ final class NotesViewModel: ObservableObject {
     @Published var selectedTagFilter: String = ""
     @Published var isSearchPresented: Bool = false
     @Published var searchQuery: String = ""
-    @Published var newNoteTitle: String = ""
-    @Published var newNoteContent: String = ""
-    @Published var newNoteTags: Set<String> = []
     @Published var shouldScrollToTop: Bool = false
     @Published private(set) var persistenceError: String?
 
@@ -69,7 +76,7 @@ final class NotesViewModel: ObservableObject {
 
         if clipboardData.count > maxClipboardNotes {
             try clipboardRepository.trimItems(to: maxClipboardNotes)
-            clipboardData = try clipboardRepository.fetchItems()
+            clipboardData = Array(clipboardData.prefix(maxClipboardNotes))
         }
 
         if monitorsClipboard {
@@ -82,32 +89,86 @@ final class NotesViewModel: ObservableObject {
     }
 
     // MARK: - Notes
-    func addNote(contentSource: NoteContentSource = .manual) {
-        guard NoteContentPolicy.canSave(newNoteContent) else { return }
-        let clean = cleanContent(newNoteContent)
+    @discardableResult
+    func addNote(
+        title: String = "",
+        content: String,
+        tags selectedTags: Set<String>,
+        contentSource: NoteContentSource = .manual
+    ) -> Bool {
+        guard NoteContentPolicy.canSave(content) else { return false }
+        let clean = cleanContent(content)
         let note = Note(
             id: UUID(),
-            title: TitleSanitizer.sanitize(newNoteTitle),
+            title: TitleSanitizer.sanitize(title),
             content: clean,
             tags: tagsForSaving(
                 content: clean,
-                selectedTags: newNoteTags,
+                selectedTags: selectedTags,
                 contentSource: contentSource
             ),
             timestamp: Date(),
             expanded: false
         )
-        guard performNotesPersistence({ try notesRepository.insertNote(note) }) else { return }
-        newNoteTitle = ""
-        newNoteContent = ""
-        newNoteTags.removeAll()
+        guard performNotesPersistence(
+            { try notesRepository.insertNote(note) },
+            updateCache: { notes = NoteOrdering.inserting(note, into: notes) }
+        ) else { return false }
 
         // Trigger scroll to top after adding a new note
         shouldScrollToTop = true
+        return true
     }
 
     func deleteNote(_ note: Note) {
-        performNotesPersistence { try notesRepository.deleteNote(id: note.id) }
+        performNotesPersistence(
+            { try notesRepository.deleteNote(id: note.id) },
+            updateCache: { notes.removeAll { $0.id == note.id } }
+        )
+    }
+
+    func importMarkdownDocument(_ document: String) throws -> NoteImportResult {
+        let candidates = try MarkdownImporter.notes(from: document)
+        var knownIdentities = Set(notes.map(NoteImportIdentity.init))
+        var notesToImport: [Note] = []
+        var skippedCount = 0
+
+        for note in candidates {
+            if knownIdentities.insert(NoteImportIdentity(note: note)).inserted {
+                notesToImport.append(note)
+            } else {
+                skippedCount += 1
+            }
+        }
+
+        var knownTags = Set(tags)
+        var missingTags: [String] = []
+        for note in notesToImport {
+            for tag in note.tags where knownTags.insert(tag).inserted {
+                missingTags.append(tag)
+            }
+        }
+
+        guard !notesToImport.isEmpty || !missingTags.isEmpty else {
+            return NoteImportResult(importedCount: 0, skippedCount: skippedCount)
+        }
+
+        do {
+            try notesRepository.importNotes(notesToImport, creatingTags: missingTags)
+            for note in notesToImport {
+                notes = NoteOrdering.inserting(note, into: notes)
+            }
+            tags.append(contentsOf: missingTags)
+            persistenceError = nil
+            return NoteImportResult(
+                importedCount: notesToImport.count,
+                skippedCount: skippedCount
+            )
+        } catch {
+            recordPersistenceError(error)
+            recoverNotesState()
+            throw error
+        }
     }
 
     func toggleExpand(_ note: Note) {
@@ -133,7 +194,34 @@ final class NotesViewModel: ObservableObject {
 
         var updatedNote = notes[index]
         updatedNote.isPinned.toggle()
-        performNotesPersistence { try notesRepository.updateNote(updatedNote) }
+        performNotesPersistence(
+            { try notesRepository.updateNote(updatedNote) },
+            updateCache: {
+                notes = NoteOrdering.replacingAndReordering(updatedNote, in: notes)
+            }
+        )
+    }
+
+    func toggleTodo(in note: Note, at lineIndex: Int) {
+        guard let index = notes.firstIndex(where: { $0.id == note.id }),
+              let updatedContent = NoteTodo.togglingItem(
+                in: notes[index].content,
+                at: lineIndex
+              ),
+              NoteContentPolicy.canSave(updatedContent) else {
+            return
+        }
+
+        var updatedNote = notes[index]
+        updatedNote.content = updatedContent
+        updatedNote.tags = tagsForSaving(
+            content: updatedContent,
+            selectedTags: Set(updatedNote.tags)
+        )
+        performNotesPersistence(
+            { try notesRepository.updateNote(updatedNote) },
+            updateCache: { notes[index] = updatedNote }
+        )
     }
 
     func copyClipboardItem(_ item: ClipboardItem) {
@@ -142,6 +230,10 @@ final class NotesViewModel: ObservableObject {
 
     func filteredClipboardData(matching query: String) -> [ClipboardItem] {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return filteredClipboardData(matchingNormalizedQuery: query)
+    }
+
+    func filteredClipboardData(matchingNormalizedQuery query: String) -> [ClipboardItem] {
         guard !query.isEmpty else { return clipboardData }
 
         let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
@@ -157,9 +249,13 @@ final class NotesViewModel: ObservableObject {
     }
 
     var filteredNotes: [Note] {
+        filteredNotes(matching: effectiveSearchQuery)
+    }
+
+    func filteredNotes(matching query: String?) -> [Note] {
         notes.filter { note in
             let matchesTag = selectedTagFilter.isEmpty || note.tags.contains(selectedTagFilter)
-            return matchesTag && matchesSearch(note)
+            return matchesTag && matchesSearch(note, query: query)
         }
     }
 
@@ -174,15 +270,32 @@ final class NotesViewModel: ObservableObject {
         guard !sanitizedContent.isEmpty else { return }
 
         let clipboardItem = ClipboardItem(content: sanitizedContent)
-        guard performClipboardPersistence({
-            try clipboardRepository.upsertItem(clipboardItem)
-        }) else { return }
-        trimClipboardData()
+        performClipboardPersistence(
+            {
+                try clipboardRepository.upsertItem(
+                    clipboardItem,
+                    limit: maxClipboardNotes
+                )
+            },
+            updateCache: {
+                clipboardData.removeAll {
+                    $0.id == clipboardItem.id || $0.content == clipboardItem.content
+                }
+                let insertionIndex = clipboardData.firstIndex {
+                    $0.timestamp < clipboardItem.timestamp
+                } ?? clipboardData.endIndex
+                clipboardData.insert(clipboardItem, at: insertionIndex)
+                if clipboardData.count > maxClipboardNotes {
+                    clipboardData.removeLast(clipboardData.count - maxClipboardNotes)
+                }
+            }
+        )
     }
 
     // MARK: - Clipboard to Note Conversion
-    func addNoteFromClipboard(title: String = "", content: String, tags: Set<String>) {
-        guard NoteContentPolicy.canSave(content) else { return }
+    @discardableResult
+    func addNoteFromClipboard(title: String = "", content: String, tags: Set<String>) -> Bool {
+        guard NoteContentPolicy.canSave(content) else { return false }
         let sanitizedContent = cleanContent(content)
 
         let note = Note(
@@ -197,22 +310,28 @@ final class NotesViewModel: ObservableObject {
             timestamp: Date(),
             expanded: false
         )
-        guard performNotesPersistence({ try notesRepository.insertNote(note) }) else { return }
+        guard performNotesPersistence(
+            { try notesRepository.insertNote(note) },
+            updateCache: { notes = NoteOrdering.inserting(note, into: notes) }
+        ) else { return false }
 
         // Trigger scroll to top after adding a new note
         shouldScrollToTop = true
+        return true
     }
 
     func removeClipboardItem(_ item: ClipboardItem) {
-        performClipboardPersistence {
-            try clipboardRepository.deleteItem(id: item.id)
-        }
+        performClipboardPersistence(
+            { try clipboardRepository.deleteItem(id: item.id) },
+            updateCache: { clipboardData.removeAll { $0.id == item.id } }
+        )
     }
 
     func clearClipboardData() {
-        performClipboardPersistence {
-            try clipboardRepository.deleteAllItems()
-        }
+        performClipboardPersistence(
+            { try clipboardRepository.deleteAllItems() },
+            updateCache: { clipboardData.removeAll() }
+        )
     }
 
     // MARK: - View Navigation
@@ -250,21 +369,40 @@ final class NotesViewModel: ObservableObject {
             tagInputError = "Only letters, numbers, spaces, hyphens, and underscores are allowed."
             return
         }
-        guard performNotesPersistence({ try notesRepository.insertTag(newTag) }) else { return }
+        guard performNotesPersistence(
+            { try notesRepository.insertTag(newTag) },
+            updateCache: { tags.append(newTag) }
+        ) else { return }
         tagInput = ""
     }
 
     func removeTag(_ tag: String) {
         // Prevent removal of Clipboard tag
         guard tag != clipboardTag else { return }
-        performNotesPersistence { try notesRepository.deleteTag(tag) }
+        performNotesPersistence(
+            { try notesRepository.deleteTag(tag) },
+            updateCache: {
+                tags.removeAll { $0 == tag }
+                notes = notes.map { note in
+                    var updatedNote = note
+                    updatedNote.tags.removeAll { $0 == tag }
+                    return updatedNote
+                }
+            }
+        )
     }
 
     func updateTagsOrder(_ newOrder: [String]) {
         // Update the tags array with the new order
         // Ensure Clipboard tag is not included in the reordering
         let filteredOrder = newOrder.filter { $0 != clipboardTag }
-        performNotesPersistence { try notesRepository.reorderTags(filteredOrder) }
+        performNotesPersistence(
+            { try notesRepository.reorderTags(filteredOrder) },
+            updateCache: {
+                let reorderedTags = Set(filteredOrder)
+                tags = filteredOrder + tags.filter { !reorderedTags.contains($0) }
+            }
+        )
     }
 
     // MARK: - Note Tag Management
@@ -274,7 +412,10 @@ final class NotesViewModel: ObservableObject {
 
         var updatedNote = notes[index]
         updatedNote.tags.append(tag)
-        performNotesPersistence { try notesRepository.updateNote(updatedNote) }
+        performNotesPersistence(
+            { try notesRepository.updateNote(updatedNote) },
+            updateCache: { notes[index] = updatedNote }
+        )
     }
 
     func removeTag(from note: Note, tag: String) {
@@ -282,17 +423,21 @@ final class NotesViewModel: ObservableObject {
 
         var updatedNote = notes[index]
         updatedNote.tags.removeAll { $0 == tag }
-        performNotesPersistence { try notesRepository.updateNote(updatedNote) }
+        performNotesPersistence(
+            { try notesRepository.updateNote(updatedNote) },
+            updateCache: { notes[index] = updatedNote }
+        )
     }
 
+    @discardableResult
     func updateNote(
         _ note: Note,
         title: String,
         content: String,
         tags newTags: Set<String>
-    ) {
-        guard let index = notes.firstIndex(where: { $0.id == note.id }) else { return }
-        guard NoteContentPolicy.canSave(content) else { return }
+    ) -> Bool {
+        guard let index = notes.firstIndex(where: { $0.id == note.id }) else { return false }
+        guard NoteContentPolicy.canSave(content) else { return false }
         let cleanedContent = cleanContent(content)
 
         var updatedNote = notes[index]
@@ -300,9 +445,9 @@ final class NotesViewModel: ObservableObject {
         updatedNote.content = cleanedContent
         updatedNote.tags = tagsForSaving(content: cleanedContent, selectedTags: newTags)
         updatedNote.expanded = false
-        performNotesPersistence(
+        return performNotesPersistence(
             { try notesRepository.updateNote(updatedNote) },
-            collapsingNoteID: updatedNote.id
+            updateCache: { notes[index] = updatedNote }
         )
     }
 
@@ -313,9 +458,12 @@ final class NotesViewModel: ObservableObject {
 
     private func trimClipboardData() {
         guard clipboardData.count > maxClipboardNotes else { return }
-        performClipboardPersistence {
-            try clipboardRepository.trimItems(to: maxClipboardNotes)
-        }
+        performClipboardPersistence(
+            { try clipboardRepository.trimItems(to: maxClipboardNotes) },
+            updateCache: {
+                clipboardData.removeLast(clipboardData.count - maxClipboardNotes)
+            }
+        )
     }
 
     private func orderedTags(from selectedTags: Set<String>) -> [String] {
@@ -333,7 +481,7 @@ final class NotesViewModel: ObservableObject {
         if contentSource == .clipboard {
             resolvedTags.insert(clipboardTag)
         }
-        if NoteContentLink.url(from: content) != nil,
+        if NoteContentLink.containsURL(content),
            let linkTag = tags.first(where: {
                $0.caseInsensitiveCompare("Link") == .orderedSame
            }) {
@@ -345,30 +493,33 @@ final class NotesViewModel: ObservableObject {
     @discardableResult
     private func performNotesPersistence(
         _ operation: () throws -> Void,
-        collapsingNoteID: UUID? = nil
+        updateCache: () -> Void
     ) -> Bool {
         do {
             try operation()
-            try reloadPersistedState(collapsingNoteID: collapsingNoteID)
+            updateCache()
             persistenceError = nil
             return true
         } catch {
             recordPersistenceError(error)
+            recoverNotesState()
             return false
         }
     }
 
     @discardableResult
     private func performClipboardPersistence(
-        _ operation: () throws -> Void
+        _ operation: () throws -> Void,
+        updateCache: () -> Void
     ) -> Bool {
         do {
             try operation()
-            clipboardData = try clipboardRepository.fetchItems()
+            updateCache()
             persistenceError = nil
             return true
         } catch {
             recordPersistenceError(error)
+            recoverClipboardState()
             return false
         }
     }
@@ -379,22 +530,40 @@ final class NotesViewModel: ObservableObject {
         logger.error("Persistence operation failed: \(message, privacy: .public)")
     }
 
-    private func reloadPersistedState(collapsingNoteID: UUID?) throws {
+    private func recoverNotesState() {
         let expandedNoteIDs = Set(
             notes.lazy
                 .filter(\.expanded)
                 .map(\.id)
         )
-        notes = try notesRepository.fetchNotes().map { note in
-            var note = note
-            note.expanded = note.id != collapsingNoteID && expandedNoteIDs.contains(note.id)
-            return note
+        do {
+            let recoveredNotes = try notesRepository.fetchNotes().map { note in
+                var note = note
+                note.expanded = expandedNoteIDs.contains(note.id)
+                return note
+            }
+            let recoveredTags = try notesRepository.fetchTags()
+            notes = recoveredNotes
+            tags = recoveredTags
+        } catch {
+            logger.error(
+                "Unable to recover notes after a persistence failure: \(error.localizedDescription, privacy: .public)"
+            )
         }
-        tags = try notesRepository.fetchTags()
     }
 
-    private func matchesSearch(_ note: Note) -> Bool {
-        guard let query = effectiveSearchQuery else { return true }
+    private func recoverClipboardState() {
+        do {
+            clipboardData = try clipboardRepository.fetchItems()
+        } catch {
+            logger.error(
+                "Unable to recover clipboard history after a persistence failure: \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+
+    private func matchesSearch(_ note: Note, query: String?) -> Bool {
+        guard let query else { return true }
         let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
         return note.title?.range(of: query, options: options, locale: .current) != nil
             || note.content.range(of: query, options: options, locale: .current) != nil

@@ -109,24 +109,56 @@ struct VirtualizedNotesList: View {
     private static let overscanCount = 5
     private static let topAnchor = "virtual-notes-top"
 
-    @EnvironmentObject private var vm: NotesViewModel
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     let notes: [Note]
+    let availableTags: [String]
+    let highlightQuery: String?
+    let canPinMore: Bool
+    @Binding var shouldScrollToTop: Bool
+    @Binding var isFilterBarShadowVisible: Bool
+    @Binding var selectedTagFilter: String
+    let onCopy: (Note) -> Void
+    let onToggleExpand: (Note) -> Void
+    let onTogglePin: (Note) -> Void
+    let onToggleTodo: (Note, Int) -> Void
+    let onDelete: (Note) -> Void
+    let onUpdate: (Note, String, String, Set<String>) -> Bool
     @State private var measuredHeights: [UUID: CGFloat] = [:]
     @State private var viewport: NoteListViewport?
     @State private var isScrollToTopVisible = false
 
     var body: some View {
+        let itemHeights = notes.map {
+            measuredHeights[$0.id] ?? Self.estimatedItemHeight
+        }
+        let currentLayout = NoteListVirtualizer.window(
+            itemHeights: itemHeights,
+            spacing: AppSpacing.small,
+            visibleRange: viewport?.range,
+            overscan: Self.overscanCount
+        )
+
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(spacing: 0) {
                     Color.clear
-                        .frame(height: layout.leadingHeight)
+                        .frame(height: currentLayout.leadingHeight)
                         .id(Self.topAnchor)
 
                     VStack(spacing: AppSpacing.small) {
-                        ForEach(Array(notes[layout.range])) { note in
-                            NoteRow(note: note)
+                        ForEach(Array(notes[currentLayout.range])) { note in
+                            NoteRow(
+                                note: note,
+                                availableTags: availableTags,
+                                highlightQuery: highlightQuery,
+                                canTogglePin: note.isPinned || canPinMore,
+                                onCopy: onCopy,
+                                onToggleExpand: onToggleExpand,
+                                onTogglePin: onTogglePin,
+                                onToggleTodo: onToggleTodo,
+                                onDelete: onDelete,
+                                onUpdate: onUpdate
+                            )
                                 .id(note.id)
                                 .transition(noteRemovalTransition)
                                 .background {
@@ -140,7 +172,7 @@ struct VirtualizedNotesList: View {
                         }
                     }
 
-                    Color.clear.frame(height: layout.trailingHeight)
+                    Color.clear.frame(height: currentLayout.trailingHeight)
                 }
                 .padding(AppSpacing.large)
             }
@@ -154,7 +186,18 @@ struct VirtualizedNotesList: View {
                     maximumY: max(0, visibleRect.maxY - contentTop)
                 )
             } action: { _, newViewport in
-                updateViewportIfWindowChanged(newViewport)
+                updateViewportIfWindowChanged(
+                    newViewport,
+                    itemHeights: itemHeights,
+                    currentRange: currentLayout.range
+                )
+            }
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                NotesFilterBarShadowBehavior.shouldShow(
+                    scrollOffset: geometry.visibleRect.minY
+                )
+            } action: { _, shouldShow in
+                isFilterBarShadowVisible = shouldShow
             }
             .onScrollGeometryChange(for: Bool.self) { geometry in
                 ScrollToTopBehavior.shouldShow(
@@ -181,9 +224,9 @@ struct VirtualizedNotesList: View {
                     )
                 }
             }
-            .onChange(of: vm.shouldScrollToTop) {
-                guard vm.shouldScrollToTop else { return }
-                vm.selectedTagFilter = ""
+            .onChange(of: shouldScrollToTop) {
+                guard shouldScrollToTop else { return }
+                selectedTagFilter = ""
                 viewport = NoteListViewport(minimumY: 0, maximumY: viewport?.maximumY ?? 320)
 
                 Task { @MainActor in
@@ -191,23 +234,10 @@ struct VirtualizedNotesList: View {
                     withAnimation(.easeInOut(duration: 0.35)) {
                         proxy.scrollTo(Self.topAnchor, anchor: .top)
                     }
-                    vm.shouldScrollToTop = false
+                    shouldScrollToTop = false
                 }
             }
         }
-    }
-
-    private var itemHeights: [CGFloat] {
-        notes.map { measuredHeights[$0.id] ?? Self.estimatedItemHeight }
-    }
-
-    private var layout: NoteListWindow {
-        NoteListVirtualizer.window(
-            itemHeights: itemHeights,
-            spacing: AppSpacing.small,
-            visibleRange: viewport?.range,
-            overscan: Self.overscanCount
-        )
     }
 
     private var noteRemovalTransition: AnyTransition {
@@ -234,14 +264,18 @@ struct VirtualizedNotesList: View {
         }
     }
 
-    private func updateViewportIfWindowChanged(_ newViewport: NoteListViewport) {
+    private func updateViewportIfWindowChanged(
+        _ newViewport: NoteListViewport,
+        itemHeights: [CGFloat],
+        currentRange: Range<Int>
+    ) {
         let newWindow = NoteListVirtualizer.window(
             itemHeights: itemHeights,
             spacing: AppSpacing.small,
             visibleRange: newViewport.range,
             overscan: Self.overscanCount
         )
-        guard viewport == nil || newWindow.range != layout.range else { return }
+        guard viewport == nil || newWindow.range != currentRange else { return }
         viewport = newViewport
     }
 }
