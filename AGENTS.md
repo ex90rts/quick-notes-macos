@@ -67,9 +67,10 @@ env DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
 固定产物为：
 
 - `dist/QuickNotes.app`
-- `dist/QuickNotes.zip`
+- `dist/QuickNotes-<version>-macOS-arm64.zip`
+- `dist/QuickNotes-<version>-macOS-arm64.dmg`
 
-脚本会覆盖这两个固定名称。不要手工拼装 `.app`，也不要把 `.build/` 或 `dist/` 提交到 Git。
+脚本从 `Info.plist` 读取版本号并覆盖该版本对应的三个固定产物。不要手工拼装 `.app`、ZIP 或 DMG，也不要把 `.build/` 或 `dist/` 提交到 Git。
 
 本项目用户已明确要求：每次完成应用代码、资源或配置改动，都必须修改 `Info.plist`，将 `CFBundleShortVersionString` 的补丁版本和 `CFBundleVersion` 各递增 1；然后执行完整 Release 打包与最终核验。不要把“实现功能”与“发布本次改动”拆开处理。
 

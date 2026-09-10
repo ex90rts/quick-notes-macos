@@ -47,7 +47,11 @@ With Xcode selected as the active developer directory, build, test, ad-hoc sign,
 ./scripts/build-release.sh
 ```
 
-The Apple Silicon `.app` and zip archive are written to `dist/`.
+The Apple Silicon `.app`, versioned zip archive, and disk image are written to `dist/`:
+
+- `QuickNotes.app`
+- `QuickNotes-<version>-macOS-arm64.zip`
+- `QuickNotes-<version>-macOS-arm64.dmg`
 
 ## Storage
 

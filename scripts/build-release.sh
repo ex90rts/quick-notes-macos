@@ -10,14 +10,24 @@ dist_dir="$project_dir/dist"
 resources_dir="$project_dir/Resources"
 
 bundle_name="QuickNotes.app"
-archive_name="QuickNotes.zip"
+release_version=$(/usr/bin/plutil -extract CFBundleShortVersionString raw "$info_plist")
+[[ "$release_version" == <->.<->.<-> ]] || {
+    print -u2 "Invalid application version: $release_version"
+    exit 2
+}
+
+package_basename="QuickNotes-$release_version-macOS-arm64"
+archive_name="$package_basename.zip"
+disk_image_name="$package_basename.dmg"
 output_app="$dist_dir/$bundle_name"
 output_archive="$dist_dir/$archive_name"
+output_disk_image="$dist_dir/$disk_image_name"
 
 staging_dir=$(mktemp -d "${TMPDIR%/}/quicknotes-release.XXXXXX")
 trap '/bin/rm -rf -- "$staging_dir"' EXIT
 staged_app="$staging_dir/$bundle_name"
 staged_archive="$staging_dir/$archive_name"
+staged_disk_image="$staging_dir/$disk_image_name"
 
 export SWIFTPM_MODULECACHE_OVERRIDE="$scratch_dir/module-cache"
 export CLANG_MODULE_CACHE_PATH="$scratch_dir/module-cache"
@@ -64,10 +74,25 @@ minimum_system=$(/usr/bin/plutil -extract LSMinimumSystemVersion raw "$staged_ap
 /usr/bin/codesign --verify --strict --verbose=2 "$staged_app"
 /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$staged_app" "$staged_archive"
 
+dmg_staging_dir="$staging_dir/dmg"
+/bin/mkdir -p "$dmg_staging_dir"
+/usr/bin/ditto "$staged_app" "$dmg_staging_dir/$bundle_name"
+/bin/ln -s /Applications "$dmg_staging_dir/Applications"
+/usr/bin/hdiutil create \
+    -quiet \
+    -volname "Quick Notes $release_version" \
+    -srcfolder "$dmg_staging_dir" \
+    -ov \
+    -format UDZO \
+    "$staged_disk_image"
+/usr/bin/hdiutil verify "$staged_disk_image" >/dev/null
+
 /bin/rm -rf -- "$output_app"
-/bin/rm -f -- "$output_archive"
+/bin/rm -f -- "$output_archive" "$output_disk_image"
 /usr/bin/ditto "$staged_app" "$output_app"
 /usr/bin/install -m 644 "$staged_archive" "$output_archive"
+/usr/bin/install -m 644 "$staged_disk_image" "$output_disk_image"
 
 print "Built $output_app"
-print "Archived $output_archive"
+print "Packaged $output_archive"
+print "Packaged $output_disk_image"

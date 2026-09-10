@@ -38,14 +38,27 @@ jobs:
         shell: zsh {0}
         run: |
           set -euo pipefail
+          app_version=$(/usr/bin/plutil -extract CFBundleShortVersionString raw Info.plist)
+          package_basename="QuickNotes-${app_version}-macOS-arm64"
           /usr/bin/lipo -archs dist/QuickNotes.app/Contents/MacOS/QuickNotes | /usr/bin/grep -qx arm64
           /usr/bin/codesign --verify --strict --verbose=2 dist/QuickNotes.app
+          test -f "dist/${package_basename}.zip"
+          /usr/bin/hdiutil verify "dist/${package_basename}.dmg"
 
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh release create "$GITHUB_REF_NAME"
-          dist/QuickNotes.zip
-          --title "Quick Notes ${GITHUB_REF_NAME#v}"
-          --generate-notes
+        shell: zsh {0}
+        run: |
+          set -euo pipefail
+          release_version="${GITHUB_REF_NAME#v}"
+          package_basename="QuickNotes-${release_version}-macOS-arm64"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release delete "$GITHUB_REF_NAME" --yes
+          fi
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/${package_basename}.zip" \
+            "dist/${package_basename}.dmg" \
+            --title "Quick Notes $release_version" \
+            --generate-notes \
+            --verify-tag
