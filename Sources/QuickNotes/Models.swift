@@ -7,7 +7,247 @@ struct Note: Identifiable, Equatable, Sendable {
     var tags: [String]
     var timestamp: Date
     var isPinned: Bool = false
+    var renderingMode: NoteRenderingMode = .markdown
     var expanded: Bool
+}
+
+enum NoteRenderingKind: String, CaseIterable, Identifiable, Sendable {
+    case automatic
+    case plainText
+    case markdown
+    case code
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .automatic: "Automatic Rendering"
+        case .plainText: "Plain Text"
+        case .markdown: "Markdown"
+        case .code: "Code"
+        }
+    }
+}
+
+enum NoteCodeLanguage: String, CaseIterable, Identifiable, Sendable {
+    case automatic
+    case json
+    case shell
+    case javascript
+    case typescript
+    case swift
+    case python
+    case html
+    case css
+    case sql
+    case yaml
+    case java
+    case kotlin
+    case go
+    case rust
+    case c
+    case cpp
+    case csharp
+
+    var id: String { rawValue }
+
+    static var selectableCases: [Self] {
+        allCases.filter { $0 != .automatic }
+    }
+
+    var title: String {
+        switch self {
+        case .automatic: "Detect Automatically"
+        case .json: "JSON"
+        case .shell: "Shell"
+        case .javascript: "JavaScript"
+        case .typescript: "TypeScript"
+        case .swift: "Swift"
+        case .python: "Python"
+        case .html: "HTML"
+        case .css: "CSS"
+        case .sql: "SQL"
+        case .yaml: "YAML"
+        case .java: "Java"
+        case .kotlin: "Kotlin"
+        case .go: "Go"
+        case .rust: "Rust"
+        case .c: "C"
+        case .cpp: "C++"
+        case .csharp: "C#"
+        }
+    }
+
+    init?(markdownIdentifier: String) {
+        let normalized = markdownIdentifier
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let aliases: [String: Self] = [
+            "auto": .automatic,
+            "automatic": .automatic,
+            "json": .json,
+            "sh": .shell,
+            "shell": .shell,
+            "bash": .shell,
+            "zsh": .shell,
+            "js": .javascript,
+            "javascript": .javascript,
+            "ts": .typescript,
+            "typescript": .typescript,
+            "swift": .swift,
+            "py": .python,
+            "python": .python,
+            "html": .html,
+            "xml": .html,
+            "css": .css,
+            "sql": .sql,
+            "yaml": .yaml,
+            "yml": .yaml,
+            "java": .java,
+            "kotlin": .kotlin,
+            "kt": .kotlin,
+            "go": .go,
+            "golang": .go,
+            "rust": .rust,
+            "rs": .rust,
+            "c": .c,
+            "cpp": .cpp,
+            "c++": .cpp,
+            "cs": .csharp,
+            "csharp": .csharp,
+            "c#": .csharp
+        ]
+        guard let language = aliases[normalized] else { return nil }
+        self = language
+    }
+}
+
+enum NoteRenderingMode: Equatable, Sendable {
+    case automatic
+    case plainText
+    case markdown
+    case code(NoteCodeLanguage)
+
+    var kind: NoteRenderingKind {
+        switch self {
+        case .automatic: .automatic
+        case .plainText: .plainText
+        case .markdown: .markdown
+        case .code: .code
+        }
+    }
+
+    var codeLanguage: NoteCodeLanguage? {
+        guard case .code(let language) = self else { return nil }
+        return language
+    }
+
+    var storageIdentifier: String {
+        switch self {
+        case .automatic: "automatic"
+        case .plainText: "plainText"
+        case .markdown: "markdown"
+        case .code(let language): "code:\(language.rawValue)"
+        }
+    }
+
+    init?(storageIdentifier: String) {
+        switch storageIdentifier {
+        case "automatic": self = .automatic
+        case "plainText": self = .plainText
+        case "markdown": self = .markdown
+        default:
+            let codePrefix = "code:"
+            guard storageIdentifier.hasPrefix(codePrefix),
+                  let language = NoteCodeLanguage(
+                    rawValue: String(storageIdentifier.dropFirst(codePrefix.count))
+                  ) else { return nil }
+            self = .code(language)
+        }
+    }
+
+    func resolvedForSaving(content: String) -> NoteRenderingMode {
+        guard self == .automatic else { return self }
+        guard let language = NoteCodeHeuristics.detectedLanguage(in: content) else {
+            return .markdown
+        }
+        return .code(language)
+    }
+
+    func rendersCode(for content: String) -> Bool {
+        switch self {
+        case .code:
+            return true
+        case .automatic:
+            return NoteCodeHeuristics.detectedLanguage(in: content) != nil
+        case .plainText, .markdown:
+            return false
+        }
+    }
+}
+
+enum NoteCodeHeuristics {
+    static func detectedLanguage(in content: String) -> NoteCodeLanguage? {
+        let source = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !source.isEmpty else { return nil }
+
+        if NoteJSON.formattedString(from: source) != nil { return .json }
+        if matches(source, #"^#!.*\b(?:ba|z|k)?sh\b"#) { return .shell }
+        if matches(source, #"(?i)<!DOCTYPE\s+html|<html\b|<[a-z][^>]*>.*</[a-z]+>"#) {
+            return .html
+        }
+        if matches(source, #"(?m)^\s*(?:import\s+(?:SwiftUI|Foundation)|@(?:State|MainActor|Published)\b|(?:struct|class|enum|protocol)\s+\w+.*\{|func\s+\w+\s*\([^)]*\)\s*(?:async\s*)?(?:throws\s*)?(?:->\s*[^\s{]+)?\s*\{)"#) {
+            return .swift
+        }
+        if matches(source, #"(?m)^\s*(?:interface\s+\w+|type\s+\w+\s*=|enum\s+\w+)|:\s*(?:string|number|boolean|unknown|never)(?:\[\])?\b|\bas\s+const\b"#) {
+            return .typescript
+        }
+        if matches(source, #"(?m)^\s*(?:const|let|var)\s+[$A-Za-z_]|\bfunction\s+[$A-Za-z_]\w*\s*\(|=>|\bconsole\.(?:log|error|warn)\s*\("#) {
+            return .javascript
+        }
+        if matches(source, #"(?m)^\s*(?:def\s+\w+\s*\(|from\s+[\w.]+\s+import\s+|import\s+[\w.]+\s*$|class\s+\w+.*:|if\s+__name__\s*==)|\bprint\s*\("#) {
+            return .python
+        }
+        if matches(source, #"(?im)^\s*(?:select\b.+\bfrom\b|insert\s+into\b|update\s+\w+\s+set\b|delete\s+from\b|create\s+table\b)"#) {
+            return .sql
+        }
+        if matches(source, #"(?m)^[.#]?[A-Za-z][\w\s.#,:>+~*\[\]=\"'-]*\s*\{\s*$"#)
+            && matches(source, #"(?m)^\s*[\w-]+\s*:\s*[^;]+;\s*$"#) {
+            return .css
+        }
+        if matches(source, #"(?m)^\s*(?:---\s*$|[A-Za-z_][\w.-]*:\s*(?:[^{}\[\]]|$))"#) {
+            return .yaml
+        }
+        if matches(source, #"(?m)^\s*package\s+main\s*$|\bfunc\s+\w+\s*\([^)]*\)\s*(?:\([^)]*\)|[\w*\[\]]+)?\s*\{"#) {
+            return .go
+        }
+        if matches(source, #"(?m)^\s*(?:fn\s+\w+|use\s+(?:std|crate)::|let\s+mut\s+\w+)|\bprintln!\s*\("#) {
+            return .rust
+        }
+        if matches(source, #"(?m)^\s*(?:fun\s+main\s*\(|data\s+class\s+\w+)|\bval\s+\w+\s*(?::|=)"#) {
+            return .kotlin
+        }
+        if matches(source, #"(?m)^\s*(?:public\s+)?(?:final\s+)?class\s+\w+|public\s+static\s+void\s+main\s*\("#) {
+            return .java
+        }
+        if matches(source, #"(?m)^\s*(?:using\s+System\s*;|namespace\s+\w+)|\bConsole\.WriteLine\s*\("#) {
+            return .csharp
+        }
+        if matches(source, #"(?m)^\s*#include\s*<(?:iostream|vector|string|memory)>|\bstd::\w+"#) {
+            return .cpp
+        }
+        if matches(source, #"(?m)^\s*#include\s*<[^>]+>|\b(?:printf|malloc|sizeof)\s*\("#) {
+            return .c
+        }
+        if matches(source, #"(?m)^\s*(?:(?:sudo\s+)?(?:cd|ls|echo|export|brew|git|npm|yarn|pnpm|curl|mkdir|rm|cp|mv)\b|\w+=\"?[^\n\"]*\"?\s*$)"#) {
+            return .shell
+        }
+        return nil
+    }
+
+    private static func matches(_ source: String, _ pattern: String) -> Bool {
+        source.range(of: pattern, options: .regularExpression) != nil
+    }
 }
 
 enum NoteOrdering {
@@ -53,6 +293,13 @@ enum NoteContentPolicy {
 
     static func canSave(_ content: String) -> Bool {
         !ContentSanitizer.sanitize(content).isEmpty && isWithinLimit(content)
+    }
+}
+
+enum ClipboardQuickAddContent {
+    static func sanitizedText(from content: String?) -> String? {
+        guard let content, NoteContentPolicy.canSave(content) else { return nil }
+        return ContentSanitizer.sanitize(content)
     }
 }
 
@@ -643,6 +890,7 @@ enum MarkdownExporter {
                 "",
                 "- Created: \(MarkdownTransferFormat.iso8601String(from: note.timestamp))",
                 "- Tags: \(tags)",
+                "- Rendering: \(note.renderingMode.storageIdentifier)",
                 "",
                 MarkdownTransferFormat.contentStartMarker,
                 ContentSanitizer.sanitize(note.content),
@@ -721,6 +969,11 @@ enum MarkdownImporter {
                 lineIndex: &lineIndex,
                 noteNumber: noteNumber
             )
+            let renderingMode = try parseRenderingMode(
+                from: lines,
+                lineIndex: &lineIndex,
+                noteNumber: noteNumber
+            )
             skipBlankLines(in: lines, lineIndex: &lineIndex)
 
             guard lines.indices.contains(lineIndex),
@@ -755,6 +1008,7 @@ enum MarkdownImporter {
                 content: content,
                 tags: tags,
                 timestamp: created,
+                renderingMode: renderingMode,
                 expanded: false
             ))
 
@@ -804,6 +1058,26 @@ enum MarkdownImporter {
             .components(separatedBy: ", ")
             .map(MarkdownTransferFormat.unescapeInlineMarkdown)
             .filter { !$0.isEmpty && seenTags.insert($0).inserted }
+    }
+
+    private static func parseRenderingMode(
+        from lines: [String],
+        lineIndex: inout Int,
+        noteNumber: Int
+    ) throws -> NoteRenderingMode {
+        let prefix = "- Rendering: "
+        guard lines.indices.contains(lineIndex), lines[lineIndex].hasPrefix(prefix) else {
+            return .markdown
+        }
+
+        let identifier = String(lines[lineIndex].dropFirst(prefix.count))
+        guard let renderingMode = NoteRenderingMode(storageIdentifier: identifier) else {
+            throw MarkdownImportError.invalidFormat(
+                "Note \(noteNumber) has an invalid Rendering value."
+            )
+        }
+        lineIndex += 1
+        return renderingMode
     }
 
     private static func contentEndIndex(

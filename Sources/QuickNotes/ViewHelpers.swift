@@ -1,4 +1,5 @@
 import AppKit
+import HighlightSwift
 import SwiftUI
 
 enum AppTheme {
@@ -18,7 +19,8 @@ enum AppTheme {
     static let disabledForeground = Color(nsColor: .disabledControlTextColor)
     static let secondaryActionFill = Color.primary.opacity(0.085)
     static let secondaryActionForeground = Color.primary
-    static let disabledActionFill = disabledFill
+    static let disabledActionFill = Color.primary.opacity(0.075)
+    static let disabledActionBorder = Color.primary.opacity(0.12)
     static let disabledActionForeground = disabledForeground
     static let searchHighlightFill = Color(red: 1.0, green: 0.86, blue: 0.42)
     static let searchHighlightForeground = Color(red: 0.20, green: 0.16, blue: 0.03)
@@ -43,10 +45,64 @@ enum AppControlMetrics {
     static let formControlHeight: CGFloat = 30
     static let inputCornerRadius: CGFloat = 6
     static let editorVerticalPadding: CGFloat = 6
+    static let editorMetadataSpacing: CGFloat = 1
+}
+
+enum HeaderMenuBehavior {
+    static let clipboardRefreshMilliseconds = 500
+}
+
+enum HeaderActionLayout {
+    static let labelSpacing: CGFloat = 6
+    static let horizontalPadding: CGFloat = 10
+    static let iconFontSize: CGFloat = 12
+    static let labelFontSize: CGFloat = 12
+    static let cornerRadius: CGFloat = 7
+}
+
+enum PasteShortcutBehavior {
+    static func matches(
+        charactersIgnoringModifiers: String?,
+        modifierFlags: NSEvent.ModifierFlags,
+        isRepeat: Bool
+    ) -> Bool {
+        guard !isRepeat,
+              charactersIgnoringModifiers?.lowercased() == "v" else { return false }
+        let modifiers = modifierFlags.intersection(.deviceIndependentFlagsMask)
+        return modifiers == .command
+    }
 }
 
 enum NoteCardLayout {
-    static let actionSpacing: CGFloat = 16
+    static let actionIconSize: CGFloat = 14
+    static let actionHoverPadding: CGFloat = 4
+    static let actionHorizontalMargin: CGFloat = 2
+    static let actionHoverCornerRadius: CGFloat = 5
+}
+
+enum NoteRenderingMenuLayout {
+    static let fontSize: CGFloat = 12
+    static let itemWidth: CGFloat = 156
+    static let itemHeight: CGFloat = 24
+    static let selectionWidth: CGFloat = 156
+    static let indicatorFontSize: CGFloat = 8
+}
+
+enum NoteDeletionAnimationMetrics {
+    static let dissolveDuration = 0.34
+    static let particleCount = 112
+    static let maximumBlurRadius: CGFloat = 4
+    static let horizontalDrift: CGFloat = 18
+}
+
+enum NoteAttentionAnimationMetrics {
+    static let pulseCount = 2
+    static let pulseInDuration = 0.16
+    static let pulseOutDuration = 0.14
+    static let pulseInHoldMilliseconds = 170
+    static let pulseOutHoldMilliseconds = 140
+    static let standardLifetimeMilliseconds = 820
+    static let reducedMotionLifetimeMilliseconds = 760
 }
 
 enum SettingsDividerMetrics {
@@ -166,6 +222,81 @@ struct NoteContentLengthHint: View {
     }
 }
 
+struct PasteShortcutMonitor: NSViewRepresentable {
+    let isEnabled: Bool
+    let onPaste: @MainActor () -> Bool
+
+    func makeNSView(context: Context) -> PasteShortcutMonitorView {
+        let view = PasteShortcutMonitorView()
+        view.isEnabled = isEnabled
+        view.onPaste = onPaste
+        view.startMonitoring()
+        return view
+    }
+
+    func updateNSView(_ view: PasteShortcutMonitorView, context: Context) {
+        view.isEnabled = isEnabled
+        view.onPaste = onPaste
+    }
+
+    static func dismantleNSView(
+        _ view: PasteShortcutMonitorView,
+        coordinator: Void
+    ) {
+        view.stopMonitoring()
+    }
+}
+
+final class PasteShortcutMonitorView: NSView {
+    var isEnabled = false
+    var onPaste: @MainActor () -> Bool = { false }
+    private var eventMonitor: Any?
+
+    func startMonitoring() {
+        guard eventMonitor == nil else { return }
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) {
+            [weak self] event in
+            let characters = event.charactersIgnoringModifiers
+            let modifiers = event.modifierFlags
+            let isRepeat = event.isARepeat
+            let wasHandled = MainActor.assumeIsolated {
+                self?.handle(
+                    charactersIgnoringModifiers: characters,
+                    modifierFlags: modifiers,
+                    isRepeat: isRepeat
+                ) ?? false
+            }
+            return wasHandled ? nil : event
+        }
+    }
+
+    func stopMonitoring() {
+        guard let eventMonitor else { return }
+        NSEvent.removeMonitor(eventMonitor)
+        self.eventMonitor = nil
+    }
+
+    private func handle(
+        charactersIgnoringModifiers: String?,
+        modifierFlags: NSEvent.ModifierFlags,
+        isRepeat: Bool
+    ) -> Bool {
+        guard isEnabled,
+              let window,
+              window.isVisible,
+              NSApp.keyWindow === window,
+              window.attachedSheet == nil,
+              NSApp.modalWindow == nil,
+              PasteShortcutBehavior.matches(
+                  charactersIgnoringModifiers: charactersIgnoringModifiers,
+                  modifierFlags: modifierFlags,
+                  isRepeat: isRepeat
+              ) else { return false }
+
+        return onPaste()
+    }
+}
+
 struct AppInputSurfaceModifier: ViewModifier {
     let isFocused: Bool
 
@@ -185,13 +316,24 @@ extension View {
         modifier(AppInputSurfaceModifier(isFocused: isFocused))
     }
 
-    func appProminentButton() -> some View {
-        buttonStyle(AppActionButtonStyle(appearance: .primary))
+    func appProminentButton(horizontalPadding: CGFloat = 14) -> some View {
+        buttonStyle(
+            AppActionButtonStyle(
+                appearance: .primary,
+                horizontalPadding: horizontalPadding
+            )
+        )
     }
 
     func appSecondaryButton() -> some View {
-        buttonStyle(AppActionButtonStyle(appearance: .secondary))
+        buttonStyle(
+            AppActionButtonStyle(
+                appearance: .secondary,
+                horizontalPadding: 14
+            )
+        )
     }
+
 }
 
 private struct AppActionButtonStyle: ButtonStyle {
@@ -201,13 +343,14 @@ private struct AppActionButtonStyle: ButtonStyle {
     }
 
     let appearance: Appearance
+    let horizontalPadding: CGFloat
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 13, weight: .medium))
             .foregroundStyle(foregroundColor)
-            .padding(.horizontal, 14)
+            .padding(.horizontal, horizontalPadding)
             .frame(height: AppControlMetrics.formControlHeight)
             .background {
                 RoundedRectangle(cornerRadius: AppControlMetrics.inputCornerRadius)
@@ -229,19 +372,32 @@ private struct AppActionButtonStyle: ButtonStyle {
 
     private var foregroundColor: Color {
         guard isEnabled else { return AppTheme.disabledActionForeground }
-        return appearance == .primary ? .white : AppTheme.secondaryActionForeground
+        switch appearance {
+        case .primary:
+            return .white
+        case .secondary:
+            return AppTheme.secondaryActionForeground
+        }
     }
 
     private var backgroundColor: Color {
         guard isEnabled else { return AppTheme.disabledActionFill }
-        return appearance == .primary ? AppTheme.brandBlue : AppTheme.secondaryActionFill
+        switch appearance {
+        case .primary:
+            return AppTheme.brandBlue
+        case .secondary:
+            return AppTheme.secondaryActionFill
+        }
     }
 
     private var borderColor: Color {
-        guard isEnabled else { return .clear }
-        return appearance == .primary
-            ? AppTheme.brandBlueDeep.opacity(0.48)
-            : .clear
+        guard isEnabled else { return AppTheme.disabledActionBorder }
+        switch appearance {
+        case .primary:
+            return AppTheme.brandBlueDeep.opacity(0.48)
+        case .secondary:
+            return .clear
+        }
     }
 
     private var shadowColor: Color {
@@ -551,21 +707,142 @@ struct HighlightedText: View {
 
 struct NoteRenderedContent: View {
     let content: String
+    let renderingMode: NoteRenderingMode
     let highlightQuery: String?
     let onToggleTodo: (Int) -> Void
 
+    @ViewBuilder
     var body: some View {
-        if let formattedJSON = NoteJSON.formattedString(from: content) {
-            JSONContentView(
-                formattedJSON: formattedJSON,
-                highlightQuery: highlightQuery
-            )
-        } else {
+        switch renderingMode {
+        case .automatic:
+            if let language = NoteCodeHeuristics.detectedLanguage(in: content) {
+                CodeContentView(
+                    code: content,
+                    language: language,
+                    highlightQuery: highlightQuery,
+                    showsLanguage: true
+                )
+            } else {
+                MarkdownContentView(
+                    blocks: NoteContentParser.blocks(from: content),
+                    highlightQuery: highlightQuery,
+                    onToggleTodo: onToggleTodo
+                )
+            }
+        case .plainText:
+            HighlightedText(content, query: highlightQuery)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        case .markdown:
             MarkdownContentView(
                 blocks: NoteContentParser.blocks(from: content),
                 highlightQuery: highlightQuery,
                 onToggleTodo: onToggleTodo
             )
+        case .code(let language):
+            CodeContentView(
+                code: content,
+                language: language,
+                highlightQuery: highlightQuery,
+                showsLanguage: true
+            )
+        }
+    }
+}
+
+private struct CodeContentView: View {
+    let code: String
+    let language: NoteCodeLanguage
+    let highlightQuery: String?
+    let showsLanguage: Bool
+
+    private var resolvedLanguage: NoteCodeLanguage? {
+        guard language == .automatic else { return language }
+        return NoteCodeHeuristics.detectedLanguage(in: code)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if showsLanguage {
+                Text(LocalizedStringKey((resolvedLanguage ?? .automatic).title))
+                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(Color.secondary)
+                    .textCase(.uppercase)
+                    .padding(.horizontal, 9)
+                    .padding(.top, 6)
+                    .padding(.bottom, 3)
+            }
+
+            ScrollView(.horizontal) {
+                SyntaxHighlightedCodeText(
+                    code: code,
+                    language: resolvedLanguage,
+                    highlightQuery: highlightQuery
+                )
+                .padding(9)
+            }
+            .scrollIndicators(.hidden)
+        }
+        .background(AppTheme.quietFill)
+        .clipShape(.rect(cornerRadius: 5))
+        .overlay {
+            RoundedRectangle(cornerRadius: 5)
+                .stroke(AppTheme.border)
+        }
+    }
+}
+
+private struct SyntaxHighlightedCodeText: View {
+    let code: String
+    let language: NoteCodeLanguage?
+    let highlightQuery: String?
+
+    @ViewBuilder
+    var body: some View {
+        if highlightQuery?.isEmpty == false {
+            HighlightedText(code, query: highlightQuery)
+                .font(.system(size: 12, design: .monospaced))
+                .textSelection(.enabled)
+                .fixedSize(horizontal: true, vertical: true)
+        } else if let highlightLanguage = language?.highlightLanguage {
+            CodeText(code)
+                .highlightLanguage(highlightLanguage)
+                .codeTextColors(.theme(.github))
+                .font(.system(size: 12, design: .monospaced))
+                .textSelection(.enabled)
+                .fixedSize(horizontal: true, vertical: true)
+        } else {
+            CodeText(code)
+                .highlightMode(.automatic)
+                .codeTextColors(.theme(.github))
+                .font(.system(size: 12, design: .monospaced))
+                .textSelection(.enabled)
+                .fixedSize(horizontal: true, vertical: true)
+        }
+    }
+}
+
+private extension NoteCodeLanguage {
+    var highlightLanguage: HighlightLanguage? {
+        switch self {
+        case .automatic: nil
+        case .json: .json
+        case .shell: .shell
+        case .javascript: .javaScript
+        case .typescript: .typeScript
+        case .swift: .swift
+        case .python: .python
+        case .html: .html
+        case .css: .css
+        case .sql: .sql
+        case .yaml: .yaml
+        case .java: .java
+        case .kotlin: .kotlin
+        case .go: .go
+        case .rust: .rust
+        case .c: .c
+        case .cpp: .cPlusPlus
+        case .csharp: .cSharp
         }
     }
 }
@@ -715,34 +992,13 @@ private struct MarkdownCodeBlockView: View {
     let highlightQuery: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if let language = codeBlock.language {
-                Text(language.uppercased())
-                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(Color.secondary)
-                    .padding(.horizontal, 9)
-                    .padding(.top, 6)
-                    .padding(.bottom, 3)
-            }
-
-            ScrollView(.horizontal) {
-                HighlightedText(
-                    codeBlock.code,
-                    query: highlightQuery
-                )
-                .font(.system(size: 12, design: .monospaced))
-                .textSelection(.enabled)
-                .fixedSize(horizontal: true, vertical: true)
-                .padding(9)
-            }
-            .scrollIndicators(.hidden)
-        }
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.72))
-        .clipShape(.rect(cornerRadius: 5))
-        .overlay {
-            RoundedRectangle(cornerRadius: 5)
-                .stroke(AppTheme.border)
-        }
+        CodeContentView(
+            code: codeBlock.code,
+            language: codeBlock.language.flatMap(NoteCodeLanguage.init(markdownIdentifier:))
+                ?? .automatic,
+            highlightQuery: highlightQuery,
+            showsLanguage: codeBlock.language != nil
+        )
     }
 }
 

@@ -114,18 +114,18 @@ struct VirtualizedNotesList: View {
     let availableTags: [String]
     let highlightQuery: String?
     let canPinMore: Bool
-    @Binding var shouldScrollToTop: Bool
+    @Binding var newlyCreatedNoteID: UUID?
     @Binding var isFilterBarShadowVisible: Bool
-    @Binding var selectedTagFilter: String
     let onCopy: (Note) -> Void
     let onToggleExpand: (Note) -> Void
     let onTogglePin: (Note) -> Void
     let onToggleTodo: (Note, Int) -> Void
     let onDelete: (Note) -> Void
-    let onUpdate: (Note, String, String, Set<String>) -> Bool
+    let onUpdate: (Note, String, String, Set<String>, NoteRenderingMode) -> Bool
     @State private var measuredHeights: [UUID: CGFloat] = [:]
     @State private var viewport: NoteListViewport?
     @State private var isScrollToTopVisible = false
+    @State private var attentionNoteID: UUID?
 
     var body: some View {
         let itemHeights = notes.map {
@@ -149,6 +149,7 @@ struct VirtualizedNotesList: View {
                         ForEach(Array(notes[currentLayout.range])) { note in
                             NoteRow(
                                 note: note,
+                                attentionRequestID: attentionNoteID == note.id ? note.id : nil,
                                 availableTags: availableTags,
                                 highlightQuery: highlightQuery,
                                 canTogglePin: note.isPinned || canPinMore,
@@ -160,7 +161,7 @@ struct VirtualizedNotesList: View {
                                 onUpdate: onUpdate
                             )
                                 .id(note.id)
-                                .transition(noteRemovalTransition)
+                                .transition(.identity)
                                 .background {
                                     GeometryReader { geometry in
                                         Color.clear.preference(
@@ -224,29 +225,33 @@ struct VirtualizedNotesList: View {
                     )
                 }
             }
-            .onChange(of: shouldScrollToTop) {
-                guard shouldScrollToTop else { return }
-                selectedTagFilter = ""
+            .task(id: newlyCreatedNoteID) {
+                guard let noteID = newlyCreatedNoteID,
+                      notes.contains(where: { $0.id == noteID }) else { return }
+
+                try? await Task.sleep(for: .milliseconds(220))
+                guard !Task.isCancelled else { return }
                 viewport = NoteListViewport(minimumY: 0, maximumY: viewport?.maximumY ?? 320)
 
-                Task { @MainActor in
-                    await Task.yield()
-                    withAnimation(.easeInOut(duration: 0.35)) {
-                        proxy.scrollTo(Self.topAnchor, anchor: .top)
-                    }
-                    shouldScrollToTop = false
+                await Task.yield()
+                withAnimation(.easeInOut(duration: 0.42)) {
+                    proxy.scrollTo(noteID, anchor: .center)
+                }
+                try? await Task.sleep(for: .milliseconds(460))
+                guard !Task.isCancelled else { return }
+
+                attentionNoteID = noteID
+                let attentionLifetime = accessibilityReduceMotion
+                    ? NoteAttentionAnimationMetrics.reducedMotionLifetimeMilliseconds
+                    : NoteAttentionAnimationMetrics.standardLifetimeMilliseconds
+                try? await Task.sleep(for: .milliseconds(attentionLifetime))
+                guard !Task.isCancelled else { return }
+                attentionNoteID = nil
+                if newlyCreatedNoteID == noteID {
+                    newlyCreatedNoteID = nil
                 }
             }
         }
-    }
-
-    private var noteRemovalTransition: AnyTransition {
-        let fade = AnyTransition.opacity
-        guard !accessibilityReduceMotion else { return fade }
-        return .asymmetric(
-            insertion: .identity,
-            removal: fade.combined(with: .scale(scale: 0.96, anchor: .trailing))
-        )
     }
 
     private func updateMeasuredHeights(_ newHeights: [UUID: CGFloat]) {

@@ -13,6 +13,7 @@ final class NoteRecord {
     var tags: [String]
     var timestamp: Date
     var isPinned: Bool = false
+    var renderingModeIdentifier: String = "markdown"
 
     init(
         id: UUID,
@@ -20,7 +21,8 @@ final class NoteRecord {
         content: String,
         tags: [String],
         timestamp: Date,
-        isPinned: Bool = false
+        isPinned: Bool = false,
+        renderingModeIdentifier: String = "markdown"
     ) {
         self.id = id
         self.title = title
@@ -28,6 +30,7 @@ final class NoteRecord {
         self.tags = tags
         self.timestamp = timestamp
         self.isPinned = isPinned
+        self.renderingModeIdentifier = renderingModeIdentifier
     }
 }
 
@@ -108,6 +111,7 @@ final class SwiftDataNotesRepository: NotesRepository {
             record.tags = note.tags
             record.timestamp = note.timestamp
             record.isPinned = note.isPinned
+            record.renderingModeIdentifier = note.renderingMode.storageIdentifier
         }
     }
 
@@ -227,7 +231,8 @@ final class SwiftDataNotesRepository: NotesRepository {
             content: note.content,
             tags: note.tags,
             timestamp: note.timestamp,
-            isPinned: note.isPinned
+            isPinned: note.isPinned,
+            renderingModeIdentifier: note.renderingMode.storageIdentifier
         )
     }
 
@@ -239,6 +244,9 @@ final class SwiftDataNotesRepository: NotesRepository {
             tags: record.tags,
             timestamp: record.timestamp,
             isPinned: record.isPinned,
+            renderingMode: NoteRenderingMode(
+                storageIdentifier: record.renderingModeIdentifier
+            ) ?? .markdown,
             expanded: false
         )
     }

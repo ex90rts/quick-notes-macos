@@ -11,9 +11,12 @@
 "Clear search" = "Clear search";
 "Close search" = "Close search";
 "Add Note" = "Add Note";
+"Paste" = "Paste";
+"Add note from clipboard" = "Add note from clipboard";
 "More" = "More";
 "More options" = "More options";
 "Clipboard" = "Clipboard";
+"Clipboard History" = "Clipboard History";
 "Settings" = "Settings";
 "About" = "About";
 "Quit Quick Notes" = "Quit Quick Notes";
@@ -62,6 +65,13 @@
 "Mark incomplete" = "Mark incomplete";
 "Mark complete" = "Mark complete";
 "Formatted JSON" = "Formatted JSON";
+"Render As" = "Render As";
+"Plain Text" = "Plain Text";
+"Markdown" = "Markdown";
+"Code" = "Code";
+"Code Language" = "Code Language";
+"Detect Automatically" = "Detect Automatically";
+"Automatic Rendering" = "Automatic";
 
 "Reorder Tags" = "Reorder Tags";
 "No tags available to reorder." = "No tags available to reorder.";

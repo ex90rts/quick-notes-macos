@@ -132,7 +132,7 @@ struct AddNoteView: View {
     @State private var title = ""
     @State private var content = ""
     @State private var selectedTags: Set<String> = []
-    @State private var contentSource: NoteContentSource = .manual
+    @State private var renderingMode: NoteRenderingMode = .automatic
 
     var body: some View {
         AppSheet(
@@ -162,34 +162,28 @@ struct AddNoteView: View {
                     Text("Note Content")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
-                    InitiallyFocusedTextEditor(
-                        text: $content,
-                        onFocusChange: { isFocused in
-                            if isFocused {
-                                focusedField = .content
-                            } else if focusedField == .content {
-                                focusedField = nil
+                    VStack(alignment: .leading, spacing: AppControlMetrics.editorMetadataSpacing) {
+                        InitiallyFocusedTextEditor(
+                            text: $content,
+                            onFocusChange: { isFocused in
+                                if isFocused {
+                                    focusedField = .content
+                                } else if focusedField == .content {
+                                    focusedField = nil
+                                }
                             }
-                        }
-                    )
+                        )
                         .frame(minHeight: 120)
                         .padding(.vertical, AppControlMetrics.editorVerticalPadding)
                         .appInputSurface(isFocused: focusedField == .content)
 
-                    HStack {
-                        Button("Paste from Clipboard") {
-                            guard let clipboardString = NSPasteboard.general.string(forType: .string),
-                                !vm.cleanContent(clipboardString).isEmpty
-                            else { return }
-                            content = clipboardString
-                            contentSource = .clipboard
+                        HStack {
+                            NoteRenderingModePicker(renderingMode: $renderingMode)
+
+                            Spacer()
+
+                            NoteContentLengthHint(content: content)
                         }
-                        .buttonStyle(.link)
-                        .font(.system(size: 12))
-
-                        Spacer()
-
-                        NoteContentLengthHint(content: content)
                     }
                 }
 
@@ -226,15 +220,134 @@ struct AddNoteView: View {
             title: title,
             content: content,
             tags: selectedTags,
-            contentSource: contentSource
+            renderingMode: renderingMode
         ) else { return }
-        if !vm.selectedTagFilter.isEmpty {
-            vm.selectedTagFilter = ""
-        }
         dismiss()
     }
 
     private func cancel() {
         dismiss()
+    }
+}
+
+struct NoteRenderingModePicker: View {
+    @Environment(\.appLanguage) private var appLanguage
+    @Binding var renderingMode: NoteRenderingMode
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text("Render As")
+                .font(.system(size: NoteRenderingMenuLayout.fontSize))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .layoutPriority(1)
+
+            HStack(spacing: 3) {
+                Menu {
+                    renderingModeButton(.automatic)
+                    renderingModeButton(.plainText)
+                    renderingModeButton(.markdown)
+
+                    Menu {
+                        ForEach(NoteCodeLanguage.selectableCases) { codeLanguage in
+                            Button {
+                                renderingMode = .code(codeLanguage)
+                            } label: {
+                                renderingModeMenuLabel(
+                                    localized(codeLanguage.title),
+                                    isSelected: renderingMode == .code(codeLanguage)
+                                )
+                            }
+                        }
+                    } label: {
+                        renderingModeMenuLabel(
+                            localized("Code"),
+                            isSelected: false
+                        )
+                    }
+                } label: {
+                    Text(verbatim: selectedModeTitle)
+                        .font(.system(size: NoteRenderingMenuLayout.fontSize))
+                        .lineLimit(1)
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .accessibilityLabel(Text("Render As"))
+                .accessibilityValue(Text(verbatim: selectedModeTitle))
+
+                Image(systemName: "chevron.down")
+                    .font(.system(
+                        size: NoteRenderingMenuLayout.indicatorFontSize,
+                        weight: .semibold
+                    ))
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+
+                Spacer(minLength: 4)
+            }
+            .frame(
+                width: NoteRenderingMenuLayout.selectionWidth,
+                height: AppControlMetrics.formControlHeight
+            )
+            .contentShape(.rect)
+        }
+        .frame(height: AppControlMetrics.formControlHeight)
+    }
+
+    private func renderingModeButton(_ mode: NoteRenderingMode) -> some View {
+        Button {
+            renderingMode = mode
+        } label: {
+            renderingModeMenuLabel(
+                localized(mode.kind.title),
+                isSelected: renderingMode == mode
+            )
+        }
+    }
+
+    private func renderingModeMenuLabel(
+        _ title: String,
+        isSelected: Bool
+    ) -> some View {
+        HStack {
+            Text(verbatim: title)
+            Spacer()
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 10, weight: .bold))
+            }
+        }
+        .font(.system(size: NoteRenderingMenuLayout.fontSize))
+        .foregroundStyle(isSelected ? Color.white : Color.primary)
+        .padding(.horizontal, 8)
+        .frame(
+            width: NoteRenderingMenuLayout.itemWidth,
+            height: NoteRenderingMenuLayout.itemHeight
+        )
+        .background(isSelected ? AppTheme.brandBlue : Color.clear)
+        .clipShape(.rect(cornerRadius: 5))
+    }
+
+    private var selectedModeTitle: String {
+        switch renderingMode {
+        case .automatic:
+            AppLocalization.string("Automatic Rendering", language: appLanguage)
+        case .plainText:
+            AppLocalization.string("Plain Text", language: appLanguage)
+        case .markdown:
+            AppLocalization.string("Markdown", language: appLanguage)
+        case .code(let language):
+            AppLocalization.string("Code", language: appLanguage)
+                + " · "
+                + AppLocalization.string(language.title, language: appLanguage)
+        }
+    }
+
+    private func localized(_ key: String) -> String {
+        AppLocalization.string(key, language: appLanguage)
     }
 }

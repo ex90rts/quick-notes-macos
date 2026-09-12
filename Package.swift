@@ -9,10 +9,18 @@ let package = Package(
     products: [
         .executable(name: "QuickNotes", targets: ["QuickNotes"])
     ],
-    dependencies: [],
+    dependencies: [
+        .package(
+            url: "https://github.com/appstefan/highlightswift.git",
+            from: "1.1.0"
+        )
+    ],
     targets: [
         .executableTarget(
             name: "QuickNotes",
+            dependencies: [
+                .product(name: "HighlightSwift", package: "highlightswift")
+            ],
             path: "Sources/QuickNotes",
             resources: []
         ),

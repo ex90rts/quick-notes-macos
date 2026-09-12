@@ -164,6 +164,9 @@ struct QuickNotesTests {
         #expect(simplifiedChinese["Display Language"] == "显示语言")
         #expect(traditionalChinese["Display Language"] == "顯示語言")
         #expect(english["Display Language"] == "Display Language")
+        #expect(simplifiedChinese["Quick Notes"] == "快记")
+        #expect(traditionalChinese["Quick Notes"] == "快记")
+        #expect(english["Quick Notes"] == "Quick Notes")
         #expect(simplifiedChinese["Automatic"] == "跟随系统")
         #expect(traditionalChinese["Automatic"] == "跟隨系統")
         #expect(english["Automatic"] == "Follow System")
@@ -403,9 +406,73 @@ struct QuickNotesTests {
 
     @Test("Note actions and Settings dividers use the intended visual metrics")
     func refinedSettingsAndNoteCardMetrics() {
-        #expect(NoteCardLayout.actionSpacing == 16)
+        #expect(HeaderMenuBehavior.clipboardRefreshMilliseconds == 500)
+        #expect(HeaderActionLayout.labelSpacing == 6)
+        #expect(HeaderActionLayout.horizontalPadding == 10)
+        #expect(HeaderActionLayout.iconFontSize == 12)
+        #expect(HeaderActionLayout.labelFontSize == 12)
+        #expect(NoteCardLayout.actionIconSize == 14)
+        #expect(NoteCardLayout.actionHoverPadding == 4)
+        #expect(NoteCardLayout.actionHorizontalMargin == 2)
+        #expect(NoteCardLayout.actionHoverCornerRadius == 5)
+        #expect(NoteRenderingMenuLayout.fontSize == 12)
+        #expect(NoteRenderingMenuLayout.itemWidth == 156)
+        #expect(NoteRenderingMenuLayout.itemHeight == 24)
+        #expect(NoteRenderingMenuLayout.selectionWidth == 156)
+        #expect(NoteRenderingMenuLayout.indicatorFontSize == 8)
         #expect(AppControlMetrics.formControlHeight == 30)
+        #expect(AppControlMetrics.editorMetadataSpacing == 1)
         #expect(SettingsDividerMetrics.dashPattern == [4, 3])
+        #expect(NoteDeletionAnimationMetrics.dissolveDuration == 0.34)
+        #expect(NoteDeletionAnimationMetrics.particleCount == 112)
+        #expect(NoteDeletionAnimationMetrics.maximumBlurRadius == 4)
+        #expect(NoteDeletionAnimationMetrics.horizontalDrift == 18)
+        #expect(NoteAttentionAnimationMetrics.pulseCount == 2)
+        #expect(NoteAttentionAnimationMetrics.standardLifetimeMilliseconds == 820)
+    }
+
+    @Test("Clipboard quick add accepts only text that can be saved as a note")
+    func clipboardQuickAddContent() {
+        #expect(ClipboardQuickAddContent.sanitizedText(from: nil) == nil)
+        #expect(ClipboardQuickAddContent.sanitizedText(from: " \n\t ") == nil)
+        #expect(
+            ClipboardQuickAddContent.sanitizedText(from: "  First line  \nSecond line  ")
+                == "First line\nSecond line"
+        )
+        #expect(
+            ClipboardQuickAddContent.sanitizedText(
+                from: String(repeating: "a", count: NoteContentPolicy.maximumCharacterCount + 1)
+            ) == nil
+        )
+    }
+
+    @Test("Clipboard quick add recognizes only an unrepeated Command-V shortcut")
+    func clipboardQuickAddShortcut() {
+        #expect(PasteShortcutBehavior.matches(
+            charactersIgnoringModifiers: "v",
+            modifierFlags: .command,
+            isRepeat: false
+        ))
+        #expect(PasteShortcutBehavior.matches(
+            charactersIgnoringModifiers: "V",
+            modifierFlags: .command,
+            isRepeat: false
+        ))
+        #expect(!PasteShortcutBehavior.matches(
+            charactersIgnoringModifiers: "v",
+            modifierFlags: [],
+            isRepeat: false
+        ))
+        #expect(!PasteShortcutBehavior.matches(
+            charactersIgnoringModifiers: "v",
+            modifierFlags: [.command, .shift],
+            isRepeat: false
+        ))
+        #expect(!PasteShortcutBehavior.matches(
+            charactersIgnoringModifiers: "v",
+            modifierFlags: .command,
+            isRepeat: true
+        ))
     }
 
     @Test("Notes filter bar shadow appears only after scrolling more than 10 points")
@@ -448,7 +515,8 @@ struct QuickNotesTests {
             addedNote,
             title: "",
             content: "Edited text with https://example.com/edited inside",
-            tags: []
+            tags: [],
+            renderingMode: .markdown
         )
         let editedNote = try #require(viewModel.notes.first { $0.id == addedNote.id })
         #expect(editedNote.tags == ["Link"])
@@ -509,6 +577,7 @@ struct QuickNotesTests {
             tags: ["Work"],
             timestamp: Date(timeIntervalSince1970: 1_700_000_000),
             isPinned: true,
+            renderingMode: .code(.swift),
             expanded: true
         )
 
@@ -523,6 +592,7 @@ struct QuickNotesTests {
         #expect(storedNote.tags == note.tags)
         #expect(storedNote.timestamp == note.timestamp)
         #expect(storedNote.isPinned)
+        #expect(storedNote.renderingMode == .code(.swift))
         #expect(!storedNote.expanded)
     }
 
@@ -827,9 +897,9 @@ struct QuickNotesTests {
         }
     }
 
-    @Test("Add Note only applies the Clipboard tag when content came from its Paste button")
+    @Test("Only clipboard-origin notes receive the Clipboard tag")
     @MainActor
-    func addNoteClipboardSource() throws {
+    func clipboardOriginNoteTags() throws {
         let repository = try makeRepository()
         try repository.insertTag("Work")
         try repository.insertTag("Clipboard")
@@ -846,10 +916,9 @@ struct QuickNotesTests {
         })
         #expect(typedNote.tags == ["Work"])
 
-        viewModel.addNote(
+        viewModel.addNoteFromClipboard(
             content: "https://example.com/pasted",
-            tags: ["Work"],
-            contentSource: .clipboard
+            tags: ["Work"]
         )
         let pastedNote = try #require(viewModel.notes.first {
             $0.content == "https://example.com/pasted"
@@ -885,7 +954,8 @@ struct QuickNotesTests {
             addedNote,
             title: "Updated",
             content: "Updated note",
-            tags: ["Work"]
+            tags: ["Work"],
+            renderingMode: .plainText
         )
         viewModel.deleteNote(initialNote)
         viewModel.tagInput = "Ideas"
@@ -899,6 +969,7 @@ struct QuickNotesTests {
         #expect(notesRepository.fetchTagsCount == 1)
         #expect(clipboardRepository.fetchItemsCount == 1)
         #expect(viewModel.notes.map(\.content) == ["Updated note"])
+        #expect(viewModel.notes.first?.renderingMode == .plainText)
         #expect(viewModel.tags == ["Ideas"])
         #expect(viewModel.clipboardData.isEmpty)
     }
@@ -958,6 +1029,7 @@ struct QuickNotesTests {
         #expect(markdown.contains("# Quick Notes"))
         #expect(markdown.contains("## Project plan"))
         #expect(markdown.contains("- Tags: Work, Ideas"))
+        #expect(markdown.contains("- Rendering: markdown"))
         #expect(markdown.contains(
             "<!-- note-content:start -->\nFirst line\n\nSecond line\n<!-- note-content:end -->"
         ))
@@ -977,6 +1049,7 @@ struct QuickNotesTests {
                 content: "# Heading\n\n---\n\n<!-- note-content:end -->\nStill content",
                 tags: ["Work", "Long-Term"],
                 timestamp: Date(timeIntervalSince1970: 100),
+                renderingMode: .code(.swift),
                 expanded: false
             ),
             Note(
@@ -984,6 +1057,7 @@ struct QuickNotesTests {
                 content: "Untitled **Markdown**",
                 tags: [],
                 timestamp: Date(timeIntervalSince1970: 50),
+                renderingMode: .plainText,
                 expanded: false
             )
         ]
@@ -999,9 +1073,88 @@ struct QuickNotesTests {
         #expect(importedNotes[0].content == sourceNotes[0].content)
         #expect(importedNotes[0].tags == sourceNotes[0].tags)
         #expect(importedNotes[0].timestamp == sourceNotes[0].timestamp)
+        #expect(importedNotes[0].renderingMode == .code(.swift))
         #expect(importedNotes[1].title == nil)
         #expect(importedNotes[1].content == sourceNotes[1].content)
         #expect(importedNotes[1].timestamp == sourceNotes[1].timestamp)
+        #expect(importedNotes[1].renderingMode == .plainText)
+    }
+
+    @Test("Legacy Markdown imports default to Markdown rendering")
+    func legacyMarkdownImportDefaultsRenderingMode() throws {
+        let document = """
+        # Quick Notes
+
+        Exported: 1970-01-01T00:00:02Z
+
+        ---
+
+        ## Legacy note
+
+        - Created: 1970-01-01T00:00:01Z
+        - Tags: None
+
+        <!-- note-content:start -->
+        **Still Markdown**
+        <!-- note-content:end -->
+        """
+
+        let note = try #require(MarkdownImporter.notes(from: document).first)
+        #expect(note.renderingMode == .markdown)
+    }
+
+    @Test("Code rendering heuristics recognize common languages")
+    func codeLanguageHeuristics() {
+        #expect(NoteCodeHeuristics.detectedLanguage(in: #"{"answer":42}"#) == .json)
+        #expect(NoteCodeHeuristics.detectedLanguage(in: "#!/bin/zsh\necho hello") == .shell)
+        #expect(NoteCodeHeuristics.detectedLanguage(in: "const answer = 42;\nconsole.log(answer)") == .javascript)
+        #expect(NoteCodeHeuristics.detectedLanguage(in: "interface User { id: string }") == .typescript)
+        #expect(NoteCodeHeuristics.detectedLanguage(in: "import SwiftUI\nstruct Demo: View {") == .swift)
+        #expect(NoteCodeHeuristics.detectedLanguage(in: "A normal sentence.") == nil)
+        #expect(
+            NoteRenderingMode.automatic.resolvedForSaving(
+                content: "const answer = 42;"
+            ) == .code(.javascript)
+        )
+        #expect(
+            NoteRenderingMode.automatic.resolvedForSaving(
+                content: "A normal sentence."
+            ) == .markdown
+        )
+        #expect(
+            NoteRenderingMode.plainText.resolvedForSaving(
+                content: "const answer = 42;"
+            ) == .plainText
+        )
+        #expect(NoteRenderingMode.code(.swift).rendersCode(for: "A normal sentence."))
+        #expect(NoteRenderingMode.automatic.rendersCode(for: "const answer = 42;"))
+        #expect(!NoteRenderingMode.automatic.rendersCode(for: "A normal sentence."))
+        #expect(!NoteRenderingMode.markdown.rendersCode(for: "```swift\nlet value = 1\n```"))
+    }
+
+    @Test("Adding a note reveals it and clears filters that could hide it")
+    @MainActor
+    func newlyCreatedNoteRevealRequest() throws {
+        let viewModel = try NotesViewModel(
+            repository: makeRepository(),
+            clipboardRepository: makeClipboardRepository(),
+            monitorsClipboard: false
+        )
+        viewModel.selectedTagFilter = "Work"
+        viewModel.searchQuery = "hidden"
+        viewModel.isSearchPresented = true
+
+        #expect(viewModel.addNote(
+            content: "const answer = 42",
+            tags: []
+        ))
+
+        let createdNote = try #require(viewModel.notes.first)
+        #expect(createdNote.renderingMode == .code(.javascript))
+        #expect(viewModel.newlyCreatedNoteID == createdNote.id)
+        #expect(viewModel.selectedTagFilter.isEmpty)
+        #expect(viewModel.searchQuery.isEmpty)
+        #expect(!viewModel.isSearchPresented)
     }
 
     @Test("Markdown import rejects documents without content markers")

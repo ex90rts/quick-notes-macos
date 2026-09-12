@@ -49,6 +49,11 @@ icon_source="$resources_dir/AppIcon.png"
 /usr/bin/install -m 755 "$binary_path" "$staged_app/Contents/MacOS/QuickNotes"
 /usr/bin/install -m 644 "$info_plist" "$staged_app/Contents/Info.plist"
 /usr/bin/ditto "$resources_dir" "$staged_app/Contents/Resources"
+dependency_resource_bundles=("$binary_dir"/*.bundle(N))
+for resource_bundle in "${dependency_resource_bundles[@]}"; do
+    /usr/bin/ditto "$resource_bundle" \
+        "$staged_app/Contents/Resources/${resource_bundle:t}"
+done
 
 iconset_dir="$staging_dir/AppIcon.iconset"
 /bin/mkdir -p "$iconset_dir"

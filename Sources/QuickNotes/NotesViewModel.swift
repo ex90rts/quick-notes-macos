@@ -27,7 +27,7 @@ final class NotesViewModel: ObservableObject {
     @Published var selectedTagFilter: String = ""
     @Published var isSearchPresented: Bool = false
     @Published var searchQuery: String = ""
-    @Published var shouldScrollToTop: Bool = false
+    @Published var newlyCreatedNoteID: UUID?
     @Published private(set) var persistenceError: String?
 
     // Settings
@@ -94,7 +94,7 @@ final class NotesViewModel: ObservableObject {
         title: String = "",
         content: String,
         tags selectedTags: Set<String>,
-        contentSource: NoteContentSource = .manual
+        renderingMode: NoteRenderingMode = .automatic
     ) -> Bool {
         guard NoteContentPolicy.canSave(content) else { return false }
         let clean = cleanContent(content)
@@ -104,10 +104,10 @@ final class NotesViewModel: ObservableObject {
             content: clean,
             tags: tagsForSaving(
                 content: clean,
-                selectedTags: selectedTags,
-                contentSource: contentSource
+                selectedTags: selectedTags
             ),
             timestamp: Date(),
+            renderingMode: renderingMode.resolvedForSaving(content: clean),
             expanded: false
         )
         guard performNotesPersistence(
@@ -115,8 +115,7 @@ final class NotesViewModel: ObservableObject {
             updateCache: { notes = NoteOrdering.inserting(note, into: notes) }
         ) else { return false }
 
-        // Trigger scroll to top after adding a new note
-        shouldScrollToTop = true
+        prepareNewNoteForReveal(note.id)
         return true
     }
 
@@ -294,7 +293,12 @@ final class NotesViewModel: ObservableObject {
 
     // MARK: - Clipboard to Note Conversion
     @discardableResult
-    func addNoteFromClipboard(title: String = "", content: String, tags: Set<String>) -> Bool {
+    func addNoteFromClipboard(
+        title: String = "",
+        content: String,
+        tags: Set<String>,
+        renderingMode: NoteRenderingMode = .automatic
+    ) -> Bool {
         guard NoteContentPolicy.canSave(content) else { return false }
         let sanitizedContent = cleanContent(content)
 
@@ -308,6 +312,7 @@ final class NotesViewModel: ObservableObject {
                 contentSource: .clipboard
             ),
             timestamp: Date(),
+            renderingMode: renderingMode.resolvedForSaving(content: sanitizedContent),
             expanded: false
         )
         guard performNotesPersistence(
@@ -315,8 +320,7 @@ final class NotesViewModel: ObservableObject {
             updateCache: { notes = NoteOrdering.inserting(note, into: notes) }
         ) else { return false }
 
-        // Trigger scroll to top after adding a new note
-        shouldScrollToTop = true
+        prepareNewNoteForReveal(note.id)
         return true
     }
 
@@ -434,7 +438,8 @@ final class NotesViewModel: ObservableObject {
         _ note: Note,
         title: String,
         content: String,
-        tags newTags: Set<String>
+        tags newTags: Set<String>,
+        renderingMode: NoteRenderingMode
     ) -> Bool {
         guard let index = notes.firstIndex(where: { $0.id == note.id }) else { return false }
         guard NoteContentPolicy.canSave(content) else { return false }
@@ -444,6 +449,7 @@ final class NotesViewModel: ObservableObject {
         updatedNote.title = TitleSanitizer.sanitize(title)
         updatedNote.content = cleanedContent
         updatedNote.tags = tagsForSaving(content: cleanedContent, selectedTags: newTags)
+        updatedNote.renderingMode = renderingMode.resolvedForSaving(content: cleanedContent)
         updatedNote.expanded = false
         return performNotesPersistence(
             { try notesRepository.updateNote(updatedNote) },
@@ -470,6 +476,13 @@ final class NotesViewModel: ObservableObject {
         let knownTags = tags.filter(selectedTags.contains)
         let remainingTags = selectedTags.subtracting(knownTags).sorted()
         return knownTags + remainingTags
+    }
+
+    private func prepareNewNoteForReveal(_ noteID: UUID) {
+        selectedTagFilter = ""
+        searchQuery = ""
+        isSearchPresented = false
+        newlyCreatedNoteID = noteID
     }
 
     private func tagsForSaving(

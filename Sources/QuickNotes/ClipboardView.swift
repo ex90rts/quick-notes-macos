@@ -65,7 +65,7 @@ struct ClipboardView: View {
     }
 
     private var header: some View {
-        SubpageHeader(title: "Clipboard") {
+        SubpageHeader(title: "Clipboard History") {
             vm.currentView = .notesList
         } trailing: {
             Button {
@@ -191,7 +191,7 @@ struct ClipboardItemRow: View {
     let availableTags: [String]
     let highlightQuery: String?
     let onCopy: (ClipboardItem) -> Void
-    let onAddToNotes: (String, String, Set<String>) -> Bool
+    let onAddToNotes: (String, String, Set<String>, NoteRenderingMode) -> Bool
     let onRemove: (ClipboardItem) -> Void
     let onNavigateToNotes: () -> Void
     @State private var showAddToNote = false
@@ -363,12 +363,13 @@ struct AddNoteFromClipboardView: View {
     let availableTags: [String]
     @Binding var isPresented: Bool
     let language: SupportedAppLanguage
-    let onAddToNotes: (String, String, Set<String>) -> Bool
+    let onAddToNotes: (String, String, Set<String>, NoteRenderingMode) -> Bool
     let onRemove: (ClipboardItem) -> Void
     let onNavigateToNotes: () -> Void
     @State private var editedTitle = ""
     @State private var editedContent: String
     @State private var selectedTags: Set<String> = []
+    @State private var renderingMode: NoteRenderingMode = .automatic
     @FocusState private var focusedField: Field?
 
     init(
@@ -376,7 +377,7 @@ struct AddNoteFromClipboardView: View {
         availableTags: [String],
         isPresented: Binding<Bool>,
         language: SupportedAppLanguage,
-        onAddToNotes: @escaping (String, String, Set<String>) -> Bool,
+        onAddToNotes: @escaping (String, String, Set<String>, NoteRenderingMode) -> Bool,
         onRemove: @escaping (ClipboardItem) -> Void,
         onNavigateToNotes: @escaping () -> Void
     ) {
@@ -418,15 +419,23 @@ struct AddNoteFromClipboardView: View {
                     Text("Note Content")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
-                    TextEditor(text: $editedContent)
-                        .font(.system(size: 14))
-                        .focused($focusedField, equals: .content)
-                        .scrollContentBackground(.hidden)
-                        .frame(minHeight: 120)
-                        .padding(.vertical, AppControlMetrics.editorVerticalPadding)
-                        .appInputSurface(isFocused: focusedField == .content)
-                    NoteContentLengthHint(content: editedContent)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
+                    VStack(alignment: .leading, spacing: AppControlMetrics.editorMetadataSpacing) {
+                        TextEditor(text: $editedContent)
+                            .font(.system(size: 14))
+                            .focused($focusedField, equals: .content)
+                            .scrollContentBackground(.hidden)
+                            .frame(minHeight: 120)
+                            .padding(.vertical, AppControlMetrics.editorVerticalPadding)
+                            .appInputSurface(isFocused: focusedField == .content)
+
+                        HStack {
+                            NoteRenderingModePicker(renderingMode: $renderingMode)
+
+                            Spacer()
+
+                            NoteContentLengthHint(content: editedContent)
+                        }
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
@@ -458,7 +467,12 @@ struct AddNoteFromClipboardView: View {
     }
 
     private func addNote() {
-        guard onAddToNotes(editedTitle, editedContent, selectedTags) else { return }
+        guard onAddToNotes(
+            editedTitle,
+            editedContent,
+            selectedTags,
+            renderingMode
+        ) else { return }
         onRemove(clipboardItem)
         onNavigateToNotes()
         isPresented = false

@@ -1,4 +1,4 @@
-"Quick Notes" = "Quick Notes";
+"Quick Notes" = "快记";
 "All" = "全部";
 "Automatic" = "跟隨系統";
 "简体中文" = "简体中文";
@@ -11,9 +11,12 @@
 "Clear search" = "清除搜尋";
 "Close search" = "關閉搜尋";
 "Add Note" = "新增筆記";
+"Paste" = "貼上";
+"Add note from clipboard" = "從剪貼簿新增筆記";
 "More" = "更多";
 "More options" = "更多選項";
 "Clipboard" = "剪貼簿";
+"Clipboard History" = "剪貼簿記錄";
 "Settings" = "設定";
 "About" = "關於";
 "Quit Quick Notes" = "結束 Quick Notes";
@@ -62,6 +65,13 @@
 "Mark incomplete" = "標示為未完成";
 "Mark complete" = "標示為已完成";
 "Formatted JSON" = "格式化的 JSON";
+"Render As" = "渲染方式";
+"Plain Text" = "純文字";
+"Markdown" = "Markdown";
+"Code" = "程式碼";
+"Code Language" = "程式語言";
+"Detect Automatically" = "自動識別";
+"Automatic Rendering" = "自動";
 
 "Reorder Tags" = "重新排列標籤";
 "No tags available to reorder." = "沒有可重新排列的標籤。";
