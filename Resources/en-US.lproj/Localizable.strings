@@ -111,6 +111,10 @@
 "Small" = "Small";
 "Medium" = "Medium";
 "Large" = "Large";
+"Code Highlight Theme" = "Code Highlight Theme";
+"Code highlighting color scheme for code in note content." = "Code highlighting color scheme for code in note content.";
+"Code highlight theme" = "Code highlight theme";
+"Preview code highlight theme" = "Preview code highlight theme";
 
 "Display Language" = "Display Language";
 "Follow the system, or choose manually." = "Follow the system, or choose manually.";

@@ -54,17 +54,30 @@ struct QuickNotesTests {
         #expect(initialPreferences.menuBarIconStyle == .color)
         #expect(initialPreferences.panelSize == .medium)
         #expect(initialPreferences.displayLanguage == .automatic)
+        #expect(initialPreferences.codeHighlightTheme == .github)
         #expect(PanelSize.small.contentSize == CGSize(width: 520, height: 600))
 
         initialPreferences.menuBarIconStyle = .monochrome
         initialPreferences.panelSize = .large
         initialPreferences.displayLanguage = .traditionalChinese
+        initialPreferences.codeHighlightTheme = .tokyoNight
         let restoredPreferences = AppPreferences(defaults: defaults)
         #expect(restoredPreferences.menuBarIconStyle == .monochrome)
         #expect(restoredPreferences.panelSize == .large)
         #expect(restoredPreferences.displayLanguage == .traditionalChinese)
+        #expect(restoredPreferences.codeHighlightTheme == .tokyoNight)
         #expect(PanelSize.medium.contentSize == CGSize(width: 620, height: 720))
         #expect(restoredPreferences.panelSize.contentSize == CGSize(width: 720, height: 840))
+    }
+
+    @Test("Code highlight themes expose the curated HighlightSwift mapping")
+    func codeHighlightThemes() {
+        #expect(CodeHighlightTheme.allCases.map(\.title) == [
+            "GitHub", "Xcode", "Atom One", "Solarized", "Tokyo Night"
+        ])
+        #expect(CodeHighlightTheme.allCases.map(\.highlightTheme.rawValue) == [
+            "GitHub", "Xcode", "Atom One", "Solarized", "Tokyo Night"
+        ])
     }
 
     @Test("Automatic display language matches supported system languages")
@@ -221,6 +234,24 @@ struct QuickNotesTests {
             "https://example.com/a",
             "http://localhost:8080/note"
         ])
+    }
+
+    @Test("Plain Text and Markdown rendering preserve clickable bare links")
+    func renderedBareLinks() throws {
+        let source = "Open https://example.com/notes to continue."
+        let expectedLink = try #require(URL(string: "https://example.com/notes"))
+
+        let plainText = NoteContentStyler.plainText(
+            source,
+            highlightQuery: "example"
+        )
+        let markdown = NoteContentStyler.markdown(
+            source,
+            highlightQuery: "example"
+        )
+
+        #expect(Set(plainText.runs.compactMap(\.link)) == Set([expectedLink]))
+        #expect(Set(markdown.runs.compactMap(\.link)) == Set([expectedLink]))
     }
 
     @Test("Markdown content recognizes custom todos and aligned tables")
@@ -381,12 +412,162 @@ struct QuickNotesTests {
         #expect(window.leadingHeight + renderedHeight + window.trailingHeight == totalHeight)
     }
 
-    @Test("Back to top appears after entering the second viewport")
+    @Test("Back to top appears after half a viewport of scrolling")
     func scrollToTopThreshold() {
-        #expect(!ScrollToTopBehavior.shouldShow(scrollOffset: 300, viewportHeight: 300))
-        #expect(ScrollToTopBehavior.shouldShow(scrollOffset: 301, viewportHeight: 300))
+        #expect(ScrollToTopBehavior.scrollDistanceViewportCount == 0.5)
+        #expect(!ScrollToTopBehavior.shouldShow(scrollOffset: 150, viewportHeight: 300))
+        #expect(ScrollToTopBehavior.shouldShow(scrollOffset: 151, viewportHeight: 300))
         #expect(!ScrollToTopBehavior.shouldShow(scrollOffset: -20, viewportHeight: 300))
         #expect(!ScrollToTopBehavior.shouldShow(scrollOffset: 301, viewportHeight: 0))
+    }
+
+    @Test("New note attention waits only when its card is outside the viewport")
+    func newNoteRevealTiming() {
+        let heightIndex = NoteListHeightIndex(
+            itemHeights: [132, 132, 132, 132],
+            spacing: 8
+        )
+
+        #expect(!NewNoteRevealBehavior.shouldWaitForScrollCompletion(
+            itemIndex: 0,
+            heightIndex: heightIndex,
+            visibleRange: 0..<320
+        ))
+        #expect(!NewNoteRevealBehavior.shouldWaitForScrollCompletion(
+            itemIndex: 2,
+            heightIndex: heightIndex,
+            visibleRange: 200..<520
+        ))
+        #expect(NewNoteRevealBehavior.shouldWaitForScrollCompletion(
+            itemIndex: 0,
+            heightIndex: heightIndex,
+            visibleRange: 300..<620
+        ))
+    }
+
+    @Test("New note attention waits until visible scrolling has settled")
+    @MainActor
+    func newNoteScrollSettleTiming() async {
+        let observer = NewNoteScrollSettleObserver()
+        let noteID = UUID()
+        var completedNoteID: UUID?
+
+        observer.begin(noteID: noteID)
+        observer.observeScrollChange(
+            noteID: noteID,
+            targetIsVisible: true,
+            completion: { completedNoteID = $0 }
+        )
+        try? await Task.sleep(for: .milliseconds(80))
+        observer.observeScrollChange(
+            noteID: noteID,
+            targetIsVisible: true,
+            completion: { completedNoteID = $0 }
+        )
+        try? await Task.sleep(for: .milliseconds(80))
+        #expect(completedNoteID == nil)
+
+        try? await Task.sleep(for: .milliseconds(80))
+        #expect(completedNoteID == noteID)
+    }
+
+    @Test("Virtual note height indexes preserve window layout at scroll boundaries")
+    func indexedVirtualNoteWindow() {
+        let itemHeights: [CGFloat] = [80, 140, 96, 180, 72, 124, 160]
+        let spacing: CGFloat = 8
+        let heightIndex = NoteListHeightIndex(
+            itemHeights: itemHeights,
+            spacing: spacing
+        )
+
+        let cases: [(Range<CGFloat>, NoteListWindow)] = [
+            (0..<80, NoteListWindow(range: 0..<2, leadingHeight: 0, trailingHeight: 672)),
+            (80..<228, NoteListWindow(range: 0..<3, leadingHeight: 0, trailingHeight: 568)),
+            (240..<430, NoteListWindow(range: 1..<5, leadingHeight: 88, trailingHeight: 300)),
+            (900..<1_000, NoteListWindow(range: 5..<7, leadingHeight: 608, trailingHeight: 0)),
+            (904..<1_077, NoteListWindow(range: 5..<7, leadingHeight: 608, trailingHeight: 0))
+        ]
+
+        for (visibleRange, expectedWindow) in cases {
+            #expect(NoteListVirtualizer.window(
+                heightIndex: heightIndex,
+                visibleRange: visibleRange,
+                overscan: 1
+            ) == expectedWindow)
+        }
+    }
+
+    @Test("Indexed virtual note windows match the previous linear layout")
+    func indexedVirtualNoteWindowMatchesLinearReference() {
+        let itemHeights: [CGFloat] = [80, 140, 96, 180, 72, 124, 160]
+        let spacing: CGFloat = 8
+        let heightIndex = NoteListHeightIndex(
+            itemHeights: itemHeights,
+            spacing: spacing
+        )
+
+        for overscan in [0, 1, 5] {
+            for minimumY in stride(from: CGFloat(-20), through: 900, by: 7) {
+                let visibleRange = minimumY..<(minimumY + 173)
+                #expect(NoteListVirtualizer.window(
+                    heightIndex: heightIndex,
+                    visibleRange: visibleRange,
+                    overscan: overscan
+                ) == linearNoteListWindow(
+                    itemHeights: itemHeights,
+                    spacing: spacing,
+                    visibleRange: visibleRange,
+                    overscan: overscan
+                ))
+            }
+        }
+    }
+
+    @Test("Batch note ordering sorts once while preserving stable ties")
+    func batchNoteOrdering() {
+        let timestamp = Date(timeIntervalSince1970: 100)
+        let existing = Note(
+            id: UUID(),
+            content: "Existing",
+            tags: [],
+            timestamp: timestamp,
+            expanded: false
+        )
+        let imported = Note(
+            id: UUID(),
+            content: "Imported",
+            tags: [],
+            timestamp: timestamp,
+            expanded: false
+        )
+        let newest = Note(
+            id: UUID(),
+            content: "Newest",
+            tags: [],
+            timestamp: timestamp.addingTimeInterval(1),
+            expanded: false
+        )
+
+        #expect(
+            NoteOrdering.merging([imported, newest], into: [existing]).map(\.id)
+                == [newest.id, existing.id, imported.id]
+        )
+    }
+
+    @Test("Panel presentation state is explicit")
+    @MainActor
+    func panelPresentationState() throws {
+        let viewModel = try NotesViewModel(
+            repository: makeRepository(),
+            clipboardRepository: makeClipboardRepository(),
+            monitorsClipboard: false
+        )
+
+        #expect(!viewModel.isPanelPresented)
+        viewModel.setPanelPresented(true)
+        #expect(viewModel.isPanelPresented)
+        viewModel.setPanelPresented(false)
+        #expect(!viewModel.isPanelPresented)
     }
 
     @Test("Collapsed note content renders up to 120 points including padding")
@@ -429,6 +610,11 @@ struct QuickNotesTests {
         #expect(NoteDeletionAnimationMetrics.horizontalDrift == 18)
         #expect(NoteAttentionAnimationMetrics.pulseCount == 2)
         #expect(NoteAttentionAnimationMetrics.standardLifetimeMilliseconds == 820)
+    }
+
+    @Test("Panel surface keeps a restrained glass treatment")
+    func panelSurfaceMetrics() {
+        #expect(PanelSurfaceMetrics.tintOpacity == 0.52)
     }
 
     @Test("Clipboard quick add accepts only text that can be saved as a note")
@@ -1132,6 +1318,29 @@ struct QuickNotesTests {
         #expect(!NoteRenderingMode.markdown.rendersCode(for: "```swift\nlet value = 1\n```"))
     }
 
+    @Test("Markdown fenced code blocks take priority over code detection")
+    func markdownCodeFencesOverrideCodeHeuristics() {
+        let markdown = """
+        # Swift example
+
+        The following snippet creates a view:
+
+        ```swift
+        import SwiftUI
+
+        struct Demo: View {
+            var body: some View { Text("Hello") }
+        }
+        ```
+        """
+
+        #expect(NoteCodeHeuristics.detectedLanguage(in: markdown) == nil)
+        #expect(
+            NoteRenderingMode.automatic.resolvedForSaving(content: markdown) == .markdown
+        )
+        #expect(!NoteRenderingMode.automatic.rendersCode(for: markdown))
+    }
+
     @Test("Adding a note reveals it and clears filters that could hide it")
     @MainActor
     func newlyCreatedNoteRevealRequest() throws {
@@ -1244,6 +1453,41 @@ struct QuickNotesTests {
         #expect(repository.tags == viewModel.tags)
     }
 
+    @Test("Batch import rejects duplicate IDs atomically")
+    @MainActor
+    func batchImportDuplicateIDs() throws {
+        let repository = try makeRepository()
+        let existing = Note(
+            id: UUID(),
+            content: "Existing",
+            tags: [],
+            timestamp: Date(timeIntervalSince1970: 100),
+            expanded: false
+        )
+        try repository.insertNote(existing)
+
+        let fresh = Note(
+            id: UUID(),
+            content: "Fresh",
+            tags: [],
+            timestamp: Date(timeIntervalSince1970: 200),
+            expanded: false
+        )
+        let duplicate = Note(
+            id: existing.id,
+            content: "Duplicate ID",
+            tags: [],
+            timestamp: Date(timeIntervalSince1970: 300),
+            expanded: false
+        )
+
+        #expect(throws: NotesRepositoryError.self) {
+            try repository.importNotes([fresh, duplicate], creatingTags: ["Imported"])
+        }
+        #expect(try repository.fetchNotes().map(\.id) == [existing.id])
+        #expect(try repository.fetchTags().contains("Imported") == false)
+    }
+
     @MainActor
     private func makeRepository() throws -> SwiftDataNotesRepository {
         SwiftDataNotesRepository(modelContainer: try makeModelContainer())
@@ -1288,6 +1532,73 @@ struct QuickNotesTests {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         try operation(directory)
+    }
+
+    private func linearNoteListWindow(
+        itemHeights: [CGFloat],
+        spacing: CGFloat,
+        visibleRange: Range<CGFloat>?,
+        overscan: Int
+    ) -> NoteListWindow {
+        guard !itemHeights.isEmpty else {
+            return NoteListWindow(range: 0..<0, leadingHeight: 0, trailingHeight: 0)
+        }
+
+        let visibleIndices: Range<Int>
+        if let visibleRange, visibleRange.upperBound > visibleRange.lowerBound {
+            let minimumY = max(0, visibleRange.lowerBound)
+            let maximumY = max(minimumY, visibleRange.upperBound)
+            var itemStart: CGFloat = 0
+            var firstVisible: Int?
+            var lastVisible: Int?
+
+            for index in itemHeights.indices {
+                let itemEnd = itemStart + itemHeights[index]
+                if itemEnd >= minimumY, itemStart <= maximumY {
+                    firstVisible = firstVisible ?? index
+                    lastVisible = index
+                } else if itemStart > maximumY {
+                    break
+                }
+                itemStart = itemEnd + spacing
+            }
+
+            if let firstVisible, let lastVisible {
+                visibleIndices = firstVisible..<(lastVisible + 1)
+            } else {
+                let fallbackIndex = minimumY >= itemStart ? itemHeights.count - 1 : 0
+                visibleIndices = fallbackIndex..<(fallbackIndex + 1)
+            }
+        } else {
+            visibleIndices = 0..<min(itemHeights.count, 4)
+        }
+
+        let lowerBound = max(0, visibleIndices.lowerBound - overscan)
+        let upperBound = min(itemHeights.count, visibleIndices.upperBound + overscan)
+        return NoteListWindow(
+            range: lowerBound..<upperBound,
+            leadingHeight: linearSkippedHeight(
+                itemHeights[..<lowerBound],
+                spacing: spacing,
+                includesBoundarySpacing: lowerBound > 0
+            ),
+            trailingHeight: linearSkippedHeight(
+                itemHeights[upperBound...],
+                spacing: spacing,
+                includesBoundarySpacing: upperBound < itemHeights.count
+            )
+        )
+    }
+
+    private func linearSkippedHeight(
+        _ heights: ArraySlice<CGFloat>,
+        spacing: CGFloat,
+        includesBoundarySpacing: Bool
+    ) -> CGFloat {
+        guard !heights.isEmpty else { return 0 }
+        let spacingCount = max(0, heights.count - 1)
+            + (includesBoundarySpacing ? 1 : 0)
+        return heights.reduce(0, +) + CGFloat(spacingCount) * spacing
     }
 }
 
@@ -1339,9 +1650,7 @@ private final class CountingNotesRepository: NotesRepository {
         for tag in tags where !self.tags.contains(tag) {
             self.tags.append(tag)
         }
-        for note in notes {
-            self.notes = NoteOrdering.inserting(note, into: self.notes)
-        }
+        self.notes = NoteOrdering.merging(notes, into: self.notes)
     }
 
     func deleteTag(_ tag: String) throws {

@@ -160,6 +160,7 @@ final class AppPreferences: ObservableObject {
         static let menuBarIconStyle = "menuBarIconStyle"
         static let panelSize = "panelSize"
         static let displayLanguage = "displayLanguage"
+        static let codeHighlightTheme = "codeHighlightTheme"
     }
 
     private let defaults: UserDefaults
@@ -182,6 +183,12 @@ final class AppPreferences: ObservableObject {
         }
     }
 
+    @Published var codeHighlightTheme: CodeHighlightTheme {
+        didSet {
+            defaults.set(codeHighlightTheme.rawValue, forKey: Key.codeHighlightTheme)
+        }
+    }
+
     var resolvedLanguage: SupportedAppLanguage {
         displayLanguage.resolvedLanguage()
     }
@@ -197,5 +204,8 @@ final class AppPreferences: ObservableObject {
         displayLanguage = defaults.string(forKey: Key.displayLanguage)
             .flatMap(AppLanguagePreference.init(rawValue:))
             ?? .automatic
+        codeHighlightTheme = defaults.string(forKey: Key.codeHighlightTheme)
+            .flatMap(CodeHighlightTheme.init(rawValue:))
+            ?? .github
     }
 }

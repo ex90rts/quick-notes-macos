@@ -111,6 +111,10 @@
 "Small" = "小";
 "Medium" = "中";
 "Large" = "大";
+"Code Highlight Theme" = "程式碼高亮主題";
+"Code highlighting color scheme for code in note content." = "筆記內容中的程式碼高亮配色方案。";
+"Code highlight theme" = "程式碼高亮主題";
+"Preview code highlight theme" = "預覽程式碼高亮主題";
 
 "Display Language" = "顯示語言";
 "Follow the system, or choose manually." = "跟隨系統，或手動選擇。";

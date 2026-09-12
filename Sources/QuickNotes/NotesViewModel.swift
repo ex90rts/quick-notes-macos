@@ -28,6 +28,7 @@ final class NotesViewModel: ObservableObject {
     @Published var isSearchPresented: Bool = false
     @Published var searchQuery: String = ""
     @Published var newlyCreatedNoteID: UUID?
+    @Published private(set) var isPanelPresented = false
     @Published private(set) var persistenceError: String?
 
     // Settings
@@ -154,9 +155,7 @@ final class NotesViewModel: ObservableObject {
 
         do {
             try notesRepository.importNotes(notesToImport, creatingTags: missingTags)
-            for note in notesToImport {
-                notes = NoteOrdering.inserting(note, into: notes)
-            }
+            notes = NoteOrdering.merging(notesToImport, into: notes)
             tags.append(contentsOf: missingTags)
             persistenceError = nil
             return NoteImportResult(
@@ -349,6 +348,10 @@ final class NotesViewModel: ObservableObject {
 
     func navigateToSettings() {
         currentView = .settings
+    }
+
+    func setPanelPresented(_ isPresented: Bool) {
+        isPanelPresented = isPresented
     }
 
     // MARK: - Tags

@@ -190,6 +190,7 @@ enum NoteCodeHeuristics {
     static func detectedLanguage(in content: String) -> NoteCodeLanguage? {
         let source = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !source.isEmpty else { return nil }
+        guard !NoteContentParser.containsCodeFence(in: source) else { return nil }
 
         if NoteJSON.formattedString(from: source) != nil { return .json }
         if matches(source, #"^#!.*\b(?:ba|z|k)?sh\b"#) { return .shell }
@@ -269,6 +270,25 @@ enum NoteOrdering {
 
     static func replacingAndReordering(_ note: Note, in notes: [Note]) -> [Note] {
         inserting(note, into: notes.filter { $0.id != note.id })
+    }
+
+    static func merging(_ additions: [Note], into notes: [Note]) -> [Note] {
+        guard !additions.isEmpty else { return notes }
+
+        return (notes + additions)
+            .enumerated()
+            .sorted { lhs, rhs in
+                let lhsNote = lhs.element
+                let rhsNote = rhs.element
+                if lhsNote.isPinned != rhsNote.isPinned {
+                    return lhsNote.isPinned
+                }
+                if lhsNote.timestamp != rhsNote.timestamp {
+                    return lhsNote.timestamp > rhsNote.timestamp
+                }
+                return lhs.offset < rhs.offset
+            }
+            .map(\.element)
     }
 }
 
@@ -474,6 +494,10 @@ enum NoteContentBlock: Equatable {
 }
 
 enum NoteContentParser {
+    static func containsCodeFence(in content: String) -> Bool {
+        content.components(separatedBy: "\n").contains { codeFence(from: $0) != nil }
+    }
+
     static func blocks(from content: String) -> [NoteContentBlock] {
         let lines = content.components(separatedBy: "\n")
         var blocks: [NoteContentBlock] = []

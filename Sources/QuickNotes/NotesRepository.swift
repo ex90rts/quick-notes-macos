@@ -144,8 +144,11 @@ final class SwiftDataNotesRepository: NotesRepository {
                 nextSortIndex += 1
             }
 
+            var knownNoteIDs = Set(
+                try modelContext.fetch(FetchDescriptor<NoteRecord>()).map(\.id)
+            )
             for note in notes {
-                guard try noteRecord(id: note.id) == nil else {
+                guard knownNoteIDs.insert(note.id).inserted else {
                     throw NotesRepositoryError.duplicateNoteID(note.id)
                 }
                 modelContext.insert(Self.makeRecord(note))

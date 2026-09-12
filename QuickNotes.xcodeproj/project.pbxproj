@@ -12,6 +12,7 @@
 		A40000000000000000000003 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000003 /* App.swift */; };
 		A40000000000000000000004 /* AppPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000004 /* AppPersistence.swift */; };
 		A40000000000000000000005 /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000005 /* AppPreferences.swift */; };
+		A40000000000000000000013 /* CodeHighlightTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000016 /* CodeHighlightTheme.swift */; };
 		A40000000000000000000006 /* ClipboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000006 /* ClipboardMonitor.swift */; };
 		A40000000000000000000007 /* ClipboardRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000007 /* ClipboardRepository.swift */; };
 		A40000000000000000000008 /* ClipboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000008 /* ClipboardView.swift */; };
@@ -48,6 +49,7 @@
 		A30000000000000000000003 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		A30000000000000000000004 /* AppPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPersistence.swift; sourceTree = "<group>"; };
 		A30000000000000000000005 /* AppPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferences.swift; sourceTree = "<group>"; };
+		A30000000000000000000016 /* CodeHighlightTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeHighlightTheme.swift; sourceTree = "<group>"; };
 		A30000000000000000000006 /* ClipboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitor.swift; sourceTree = "<group>"; };
 		A30000000000000000000007 /* ClipboardRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardRepository.swift; sourceTree = "<group>"; };
 		A30000000000000000000008 /* ClipboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardView.swift; sourceTree = "<group>"; };
@@ -141,6 +143,7 @@
 				A30000000000000000000003 /* App.swift */,
 				A30000000000000000000004 /* AppPersistence.swift */,
 				A30000000000000000000005 /* AppPreferences.swift */,
+				A30000000000000000000016 /* CodeHighlightTheme.swift */,
 				A30000000000000000000006 /* ClipboardMonitor.swift */,
 				A30000000000000000000007 /* ClipboardRepository.swift */,
 				A30000000000000000000008 /* ClipboardView.swift */,
@@ -249,6 +252,7 @@
 				A40000000000000000000003 /* App.swift in Sources */,
 				A40000000000000000000004 /* AppPersistence.swift in Sources */,
 				A40000000000000000000005 /* AppPreferences.swift in Sources */,
+				A40000000000000000000013 /* CodeHighlightTheme.swift in Sources */,
 				A40000000000000000000006 /* ClipboardMonitor.swift in Sources */,
 				A40000000000000000000007 /* ClipboardRepository.swift in Sources */,
 				A40000000000000000000008 /* ClipboardView.swift in Sources */,
@@ -315,12 +319,12 @@
 				ARCHS = arm64;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 86;
+				CURRENT_PROJECT_VERSION = 95;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
-				MARKETING_VERSION = 1.2.21;
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.webber.QuickNotes;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = macosx;
@@ -335,12 +339,12 @@
 				ARCHS = arm64;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 86;
+				CURRENT_PROJECT_VERSION = 95;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
-				MARKETING_VERSION = 1.2.21;
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.webber.QuickNotes;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = macosx;

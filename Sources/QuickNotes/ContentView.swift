@@ -218,7 +218,8 @@ struct NotesListView: View {
             .frame(width: 1, height: 1)
             .allowsHitTesting(false)
         }
-        .task {
+        .task(id: vm.isPanelPresented) {
+            guard vm.isPanelPresented else { return }
             await refreshClipboardQuickAddAvailability()
         }
         .overlayPreferenceValue(PinTooltipPreferenceKey.self) { tooltip in
@@ -387,12 +388,14 @@ struct NotesListView: View {
     }
 
     private func refreshClipboardQuickAddAvailability() async {
-        while !Task.isCancelled {
-            updateClipboardQuickAddContent()
+        updateClipboardQuickAddContent(force: true)
 
+        while !Task.isCancelled, vm.isPanelPresented {
             try? await Task.sleep(
                 for: .milliseconds(HeaderMenuBehavior.clipboardRefreshMilliseconds)
             )
+            guard !Task.isCancelled, vm.isPanelPresented else { return }
+            updateClipboardQuickAddContent()
         }
     }
 

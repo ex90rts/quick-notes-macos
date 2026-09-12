@@ -167,7 +167,12 @@ final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
         }
     }
 
+    func popoverWillShow(_ notification: Notification) {
+        viewModel.setPanelPresented(true)
+    }
+
     func popoverDidClose(_ notification: Notification) {
+        viewModel.setPanelPresented(false)
         viewModel.showAddNote = false
         viewModel.showAbout = false
     }
@@ -184,6 +189,8 @@ private struct LocalizedAppContent: View {
             .environmentObject(preferences)
             .environment(\.locale, language.locale)
             .environment(\.appLanguage, language)
+            .environment(\.codeHighlightTheme, preferences.codeHighlightTheme)
             .id(language)
+            .panelSurface()
     }
 }

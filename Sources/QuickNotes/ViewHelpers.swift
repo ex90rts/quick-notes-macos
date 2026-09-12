@@ -6,7 +6,7 @@ enum AppTheme {
     static let brandBlue = Color(red: 0.29, green: 0.53, blue: 0.91)
     static let brandBlueDeep = Color(red: 0.22, green: 0.47, blue: 0.84)
     static let pinnedGold = Color(red: 0.93, green: 0.65, blue: 0.16)
-    static let canvas = Color(nsColor: .windowBackgroundColor)
+    static let canvas = Color.clear
     static let surface = Color(nsColor: .controlBackgroundColor)
     static let elevatedSurface = Color(nsColor: .textBackgroundColor)
     static let inputSurface = Color(nsColor: .textBackgroundColor)
@@ -31,6 +31,44 @@ enum AppTheme {
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
+}
+
+enum PanelSurfaceMetrics {
+    static let tintOpacity = 0.52
+}
+
+private struct PanelSurfaceModifier: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        content.background {
+            panelBackground
+        }
+    }
+
+    @ViewBuilder
+    private var panelBackground: some View {
+        if reduceTransparency {
+            Color(nsColor: .windowBackgroundColor)
+        } else if #available(macOS 26.0, *) {
+            Color(nsColor: .windowBackgroundColor)
+                .opacity(PanelSurfaceMetrics.tintOpacity)
+                .glassEffect(.regular, in: Rectangle())
+        } else {
+            ZStack {
+                Rectangle().fill(.thinMaterial)
+                Color(nsColor: .windowBackgroundColor)
+                    .opacity(PanelSurfaceMetrics.tintOpacity)
+            }
+        }
+    }
+}
+
+extension View {
+    func panelSurface() -> some View {
+        modifier(PanelSurfaceModifier())
+    }
 }
 
 enum AppSpacing {
@@ -137,11 +175,11 @@ enum NoteContentLayout {
 }
 
 enum ScrollToTopBehavior {
-    static let visibleViewportCount: CGFloat = 2
+    static let scrollDistanceViewportCount: CGFloat = 0.5
 
     static func shouldShow(scrollOffset: CGFloat, viewportHeight: CGFloat) -> Bool {
         guard viewportHeight > 0 else { return false }
-        let scrollThreshold = viewportHeight * (visibleViewportCount - 1)
+        let scrollThreshold = viewportHeight * scrollDistanceViewportCount
         return max(0, scrollOffset) > scrollThreshold
     }
 }
@@ -730,7 +768,10 @@ struct NoteRenderedContent: View {
                 )
             }
         case .plainText:
-            HighlightedText(content, query: highlightQuery)
+            Text(NoteContentStyler.plainText(
+                content,
+                highlightQuery: highlightQuery
+            ))
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
         case .markdown:
@@ -793,6 +834,7 @@ private struct CodeContentView: View {
 }
 
 private struct SyntaxHighlightedCodeText: View {
+    @Environment(\.codeHighlightTheme) private var codeHighlightTheme
     let code: String
     let language: NoteCodeLanguage?
     let highlightQuery: String?
@@ -807,14 +849,14 @@ private struct SyntaxHighlightedCodeText: View {
         } else if let highlightLanguage = language?.highlightLanguage {
             CodeText(code)
                 .highlightLanguage(highlightLanguage)
-                .codeTextColors(.theme(.github))
+                .codeTextColors(.theme(codeHighlightTheme.highlightTheme))
                 .font(.system(size: 12, design: .monospaced))
                 .textSelection(.enabled)
                 .fixedSize(horizontal: true, vertical: true)
         } else {
             CodeText(code)
                 .highlightMode(.automatic)
-                .codeTextColors(.theme(.github))
+                .codeTextColors(.theme(codeHighlightTheme.highlightTheme))
                 .font(.system(size: 12, design: .monospaced))
                 .textSelection(.enabled)
                 .fixedSize(horizontal: true, vertical: true)
@@ -1107,7 +1149,17 @@ private struct JSONContentView: View {
     }
 }
 
-private enum NoteContentStyler {
+enum NoteContentStyler {
+    static func plainText(
+        _ source: String,
+        highlightQuery: String?
+    ) -> AttributedString {
+        var result = AttributedString(source)
+        applyDetectedLinks(to: &result)
+        applySearchHighlight(to: &result, query: highlightQuery)
+        return result
+    }
+
     static func markdown(
         _ source: String,
         highlightQuery: String?,

@@ -111,6 +111,10 @@
 "Small" = "小";
 "Medium" = "中";
 "Large" = "大";
+"Code Highlight Theme" = "代码高亮主题";
+"Code highlighting color scheme for code in note content." = "笔记内容中的代码高亮配色方案。";
+"Code highlight theme" = "代码高亮主题";
+"Preview code highlight theme" = "预览代码高亮主题";
 
 "Display Language" = "显示语言";
 "Follow the system, or choose manually." = "跟随系统，或手动选择。";

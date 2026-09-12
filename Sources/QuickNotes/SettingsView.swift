@@ -1,4 +1,5 @@
 import AppKit
+import HighlightSwift
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -179,6 +180,33 @@ struct SettingsView: View {
                         width: 210,
                         accessibilityLabel: "Panel size"
                     ) { $0.title }
+                }
+                .padding(.vertical, AppSpacing.medium)
+
+                SettingsDashedDivider()
+
+                SettingsControlRow(
+                    title: "Code Highlight Theme",
+                    description: "Code highlighting color scheme for code in note content."
+                ) {
+                    HStack(spacing: AppSpacing.small) {
+                        Picker("", selection: $preferences.codeHighlightTheme) {
+                            ForEach(CodeHighlightTheme.allCases) { theme in
+                                Text(verbatim: theme.title)
+                                    .tag(theme)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .controlSize(.large)
+                        .frame(
+                            width: 150,
+                            height: AppControlMetrics.formControlHeight
+                        )
+                        .accessibilityLabel(Text("Code highlight theme"))
+
+                        CodeHighlightThemePreviewButton(theme: preferences.codeHighlightTheme)
+                    }
                 }
                 .padding(.top, AppSpacing.medium)
             }
@@ -416,6 +444,77 @@ private struct SettingsImportAlert: Identifiable {
     let id = UUID()
     let title: String
     let message: String
+}
+
+private struct CodeHighlightThemePreviewButton: View {
+    let theme: CodeHighlightTheme
+    @State private var isHovering = false
+    @State private var isPreviewPresented = false
+
+    var body: some View {
+        Image(systemName: "eye")
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(isHovering ? AppTheme.brandBlue : Color.secondary)
+            .frame(
+                width: AppControlMetrics.formControlHeight,
+                height: AppControlMetrics.formControlHeight
+            )
+            .background(isHovering ? AppTheme.selectedFill : AppTheme.quietFill)
+            .clipShape(.rect(cornerRadius: AppControlMetrics.inputCornerRadius))
+            .overlay {
+                RoundedRectangle(cornerRadius: AppControlMetrics.inputCornerRadius)
+                    .stroke(AppTheme.border)
+            }
+            .contentShape(.rect)
+            .onHover { hovering in
+                isHovering = hovering
+                isPreviewPresented = hovering
+            }
+            .popover(isPresented: $isPreviewPresented, arrowEdge: .trailing) {
+                CodeHighlightThemePreview(theme: theme)
+            }
+            .help("Preview code highlight theme")
+            .accessibilityElement()
+            .accessibilityLabel(Text("Preview code highlight theme"))
+    }
+}
+
+private struct CodeHighlightThemePreview: View {
+    let theme: CodeHighlightTheme
+
+    private let sample = """
+    struct Note: Identifiable {
+        let id = UUID()
+        let title: String
+        var isPinned = false
+    }
+    """
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            Text(verbatim: theme.title)
+                .font(.system(size: 13, weight: .semibold))
+
+            ScrollView(.horizontal) {
+                CodeText(sample)
+                    .highlightLanguage(.swift)
+                    .codeTextColors(.theme(theme.highlightTheme))
+                    .font(.system(size: 12, design: .monospaced))
+                    .fixedSize(horizontal: true, vertical: true)
+                    .padding(AppSpacing.medium)
+            }
+            .scrollIndicators(.hidden)
+            .background(AppTheme.quietFill)
+            .clipShape(.rect(cornerRadius: AppControlMetrics.inputCornerRadius))
+            .overlay {
+                RoundedRectangle(cornerRadius: AppControlMetrics.inputCornerRadius)
+                    .stroke(AppTheme.border)
+            }
+        }
+        .padding(AppSpacing.large)
+        .frame(width: 360, alignment: .leading)
+        .background(AppTheme.elevatedSurface)
+    }
 }
 
 private struct HistoryLimitControl: View {
