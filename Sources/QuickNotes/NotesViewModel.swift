@@ -62,6 +62,7 @@ final class NotesViewModel: ObservableObject {
     private let notesRepository: any NotesRepository
     private let clipboardRepository: any ClipboardRepository
     private let logger = Logger(subsystem: "com.webber.QuickNotes", category: "Persistence")
+    private var libraryChangeObserver: NSObjectProtocol?
     let clipboardTag = "Clipboard"
 
     init(
@@ -86,6 +87,16 @@ final class NotesViewModel: ObservableObject {
             }
             clipboardMonitor = monitor
             monitor.startMonitoring()
+        }
+
+        libraryChangeObserver = DistributedNotificationCenter.default().addObserver(
+            forName: QuickNotesLibraryChange.notification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.refreshNotesAfterExternalChange()
+            }
         }
     }
 
@@ -178,6 +189,10 @@ final class NotesViewModel: ObservableObject {
 
     func copyNote(_ note: Note) {
         copyToPasteboard(cleanContent(note.content))
+    }
+
+    func copyNoteID(_ note: Note) {
+        copyToPasteboard(NoteIdentifier.string(for: note))
     }
 
     func canTogglePin(for note: Note) -> Bool {
@@ -358,22 +373,9 @@ final class NotesViewModel: ObservableObject {
     func addTag() {
         tagInputError = nil
         let raw = tagInput
-        let newTag = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !newTag.isEmpty else {
-            tagInputError = "Tag cannot be empty."
-            return
-        }
-        guard newTag.count <= 10 else {
-            tagInputError = "Tag must be at most 10 characters."
-            return
-        }
-        guard !tags.contains(newTag) else {
-            tagInputError = "This tag already exists."
-            return
-        }
-        let allowed = CharacterSet.alphanumerics.union(.whitespaces).union(CharacterSet(charactersIn: "-_"))
-        if newTag.rangeOfCharacter(from: allowed.inverted) != nil {
-            tagInputError = "Only letters, numbers, spaces, hyphens, and underscores are allowed."
+        let newTag = TagNamePolicy.sanitized(raw)
+        if let validationError = TagNamePolicy.validationError(for: raw, existingTags: tags) {
+            tagInputError = validationError
             return
         }
         guard performNotesPersistence(
@@ -566,6 +568,10 @@ final class NotesViewModel: ObservableObject {
                 "Unable to recover notes after a persistence failure: \(error.localizedDescription, privacy: .public)"
             )
         }
+    }
+
+    private func refreshNotesAfterExternalChange() {
+        recoverNotesState()
     }
 
     private func recoverClipboardState() {

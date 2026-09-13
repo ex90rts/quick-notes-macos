@@ -26,6 +26,7 @@
 "Unpin" = "Unpin";
 "Pin" = "Pin";
 "Copied" = "Copied";
+"Copy Note ID" = "Copy Note ID";
 "Copy" = "Copy";
 "Edit" = "Edit";
 "Delete" = "Delete";
@@ -148,6 +149,19 @@
 " Ignored %lld note with identical title and content." = " Ignored %lld note with identical title and content.";
 " Ignored %lld notes with identical title and content." = " Ignored %lld notes with identical title and content.";
 "OK" = "OK";
+
+"MCP Server" = "MCP Server";
+"Let a local Agent read and manage this library. The server uses a local subprocess, not a network address." = "Let a local Agent read and manage this library. The server uses a local subprocess, not a network address.";
+"Enable MCP Server" = "Enable MCP Server";
+"When disabled, Agents cannot connect or change your notes." = "When disabled, Agents cannot connect or change your notes.";
+"Agent Installation Configuration" = "Agent Installation Configuration";
+"Copy this configuration into your Agent’s MCP settings. It launches this app locally with no server address or open port." = "Copy this configuration into your Agent’s MCP settings. It launches this app locally with no server address or open port.";
+"Copy Configuration" = "Copy Configuration";
+"Let a local Agent read and manage this library through a loopback HTTP address." = "Let a local Agent read and manage this library through a loopback HTTP address.";
+"When enabled, this Mac listens only at the address below." = "When enabled, this Mac listens only at the address below.";
+"Agent MCP Address" = "Agent MCP Address";
+"Copy this URL into your Agent’s MCP settings. It is available only while Quick Notes is running." = "Copy this URL into your Agent’s MCP settings. It is available only while Quick Notes is running.";
+"Copy Address" = "Copy Address";
 
 "Version: %@ (%@)" = "Version: %@ (%@)";
 "Unknown" = "Unknown";

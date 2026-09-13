@@ -44,7 +44,10 @@ final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
     private var iconStyleCancellable: AnyCancellable?
     private var panelSizeCancellable: AnyCancellable?
 
-    init(viewModel: NotesViewModel, preferences: AppPreferences) {
+    init(
+        viewModel: NotesViewModel,
+        preferences: AppPreferences
+    ) {
         self.viewModel = viewModel
         self.preferences = preferences
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)

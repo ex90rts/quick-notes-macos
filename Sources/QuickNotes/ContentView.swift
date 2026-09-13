@@ -510,6 +510,7 @@ struct NotesListView: View {
                 newlyCreatedNoteID: $vm.newlyCreatedNoteID,
                 isFilterBarShadowVisible: $isFilterBarShadowVisible,
                 onCopy: vm.copyNote,
+                onCopyIdentifier: vm.copyNoteID,
                 onToggleExpand: vm.toggleExpand,
                 onTogglePin: vm.togglePin,
                 onToggleTodo: vm.toggleTodo,
@@ -829,6 +830,7 @@ struct NoteRow: View {
     let highlightQuery: String?
     let canTogglePin: Bool
     let onCopy: (Note) -> Void
+    let onCopyIdentifier: (Note) -> Void
     let onToggleExpand: (Note) -> Void
     let onTogglePin: (Note) -> Void
     let onToggleTodo: (Note, Int) -> Void
@@ -836,6 +838,7 @@ struct NoteRow: View {
     let onUpdate: (Note, String, String, Set<String>, NoteRenderingMode) -> Bool
     @State private var showDeleteAlert: Bool = false
     @State private var didJustCopy: Bool = false
+    @State private var didJustCopyIdentifier: Bool = false
     @State private var showEditSheet: Bool = false
     @State private var contentHeight: CGFloat = 0
     @State private var maxHeight: CGFloat = 0
@@ -849,6 +852,23 @@ struct NoteRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
+                Button {
+                    onCopyIdentifier(note)
+                    didJustCopyIdentifier = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                        didJustCopyIdentifier = false
+                    }
+                } label: {
+                    Text(didJustCopyIdentifier ? "Copied" : "#ID")
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(didJustCopyIdentifier ? AppTheme.brandBlue : Color.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(
+                    Text(LocalizedStringKey(didJustCopyIdentifier ? "Copied" : "Copy Note ID"))
+                )
+                .help(Text(LocalizedStringKey(didJustCopyIdentifier ? "Copied" : "Copy Note ID")))
+
                 Text(note.timestamp, format: AppFormatters.noteTimestamp)
                     .font(.system(size: 11))
                     .monospacedDigit()

@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var isExportTooltipVisible = false
     @State private var importAlert: SettingsImportAlert?
     @State private var isCodeHighlightPreviewExpanded = false
+    @State private var mcpConfigurationCopied = false
     @FocusState private var isTagInputFocused: Bool
 
     var body: some View {
@@ -53,8 +54,10 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 14) {
                 displayLanguageSection
                 tagsSection
-                clipboardSection
+                // Clipboard behavior remains available; its settings UI is intentionally hidden
+                // until the configuration model is ready to be exposed again.
                 appearanceSection
+                mcpSection
                 transferSection
             }
             .padding(AppSpacing.large)
@@ -308,6 +311,57 @@ struct SettingsView: View {
         }
     }
 
+    private var mcpSection: some View {
+        SettingsSection(
+            title: "MCP Server",
+            systemImage: "cpu",
+            description: "Let a local Agent read and manage this library. The server uses a local subprocess, not a network address."
+        ) {
+            VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                SettingsControlRow(
+                    title: "Enable MCP Server",
+                    description: "When disabled, Agents cannot connect or change your notes."
+                ) {
+                    Toggle("Enable MCP Server", isOn: $preferences.mcpServerEnabled)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .tint(AppTheme.brandBlue)
+                        .accessibilityLabel("Enable MCP Server")
+                }
+
+                SettingsDashedDivider()
+
+                HStack(alignment: .center, spacing: AppSpacing.medium) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Agent Installation Configuration")
+                            .font(.system(size: 13, weight: .medium))
+                        Text(verbatim: QuickNotesMCPStdioConfiguration.configuration)
+                            .font(.system(.caption, design: .monospaced))
+                            .textSelection(.enabled)
+                            .foregroundStyle(.secondary)
+                        Text("Copy this configuration into your Agent’s MCP settings. It launches this app locally with no server address or open port.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        copyMCPConfiguration()
+                    } label: {
+                        Label(
+                            mcpConfigurationCopied ? "Copied" : "Copy Configuration",
+                            systemImage: mcpConfigurationCopied ? "checkmark" : "doc.on.doc"
+                        )
+                    }
+                    .appProminentButton()
+                    .fixedSize()
+                    .accessibilityLabel("Copy Configuration")
+                }
+            }
+        }
+    }
+
     private var displayLanguageSection: some View {
         SettingsSection(
             title: "Display Language",
@@ -445,6 +499,15 @@ struct SettingsView: View {
 
     private func localized(_ key: String) -> String {
         AppLocalization.string(key, language: appLanguage)
+    }
+
+    private func copyMCPConfiguration() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(
+            QuickNotesMCPStdioConfiguration.configuration,
+            forType: .string
+        )
+        mcpConfigurationCopied = true
     }
 
     private var exportFileName: String {

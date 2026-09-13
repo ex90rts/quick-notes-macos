@@ -55,19 +55,115 @@ struct QuickNotesTests {
         #expect(initialPreferences.panelSize == .medium)
         #expect(initialPreferences.displayLanguage == .automatic)
         #expect(initialPreferences.codeHighlightTheme == .github)
+        #expect(initialPreferences.mcpServerEnabled)
         #expect(PanelSize.small.contentSize == CGSize(width: 520, height: 600))
 
         initialPreferences.menuBarIconStyle = .monochrome
         initialPreferences.panelSize = .large
         initialPreferences.displayLanguage = .traditionalChinese
         initialPreferences.codeHighlightTheme = .tokyoNight
+        initialPreferences.mcpServerEnabled = false
         let restoredPreferences = AppPreferences(defaults: defaults)
         #expect(restoredPreferences.menuBarIconStyle == .monochrome)
         #expect(restoredPreferences.panelSize == .large)
         #expect(restoredPreferences.displayLanguage == .traditionalChinese)
         #expect(restoredPreferences.codeHighlightTheme == .tokyoNight)
+        #expect(!restoredPreferences.mcpServerEnabled)
         #expect(PanelSize.medium.contentSize == CGSize(width: 620, height: 720))
         #expect(restoredPreferences.panelSize.contentSize == CGSize(width: 720, height: 840))
+    }
+
+    @Test("MCP installation configuration launches the bundled executable over stdio")
+    func mcpStdioConfiguration() throws {
+        let configuration = QuickNotesMCPStdioConfiguration.configuration(
+            executablePath: "/Applications/Quick Notes.app/Contents/MacOS/QuickNotes"
+        )
+        let data = try #require(configuration.data(using: .utf8))
+        let decoded = try #require(
+            try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        let servers = try #require(decoded["mcpServers"] as? [String: Any])
+        let quickNotes = try #require(servers["quick-notes"] as? [String: Any])
+
+        #expect(quickNotes["command"] as? String == "/Applications/Quick Notes.app/Contents/MacOS/QuickNotes")
+        #expect(quickNotes["args"] as? [String] == ["--mcp"])
+    }
+
+    @Test("Note identifiers use canonical lowercase UUID text")
+    func noteIdentifier() {
+        let note = Note(
+            id: UUID(uuidString: "A953026F-75DD-4AD1-96CC-E058B589077C")!,
+            content: "Identifier test",
+            tags: [],
+            timestamp: .now,
+            expanded: false
+        )
+
+        #expect(NoteIdentifier.string(for: note) == "a953026f-75dd-4ad1-96cc-e058b589077c")
+    }
+
+    @Test("MCP service lists, creates, updates, and tags notes without deletion")
+    @MainActor
+    func mcpServiceOperations() throws {
+        let repository = try makeRepository()
+        let service = QuickNotesMCPService(repository: repository)
+
+        let toolNames = service.toolDefinitions.compactMap { $0["name"] as? String }
+        #expect(toolNames == [
+            "quick_notes_list_notes",
+            "quick_notes_create_note",
+            "quick_notes_update_note",
+            "quick_notes_add_tag"
+        ])
+        let updateDefinition = try #require(service.toolDefinitions.first { definition in
+            definition["name"] as? String == "quick_notes_update_note"
+        })
+        let updateSchema = try #require(updateDefinition["inputSchema"] as? [String: Any])
+        #expect(updateSchema["required"] as? [String] == ["id", "content"])
+        let updateProperties = try #require(updateSchema["properties"] as? [String: Any])
+        #expect(updateProperties["is_pinned"] == nil)
+
+        let addedTag = service.call("quick_notes_add_tag", arguments: ["name": "Projects"])
+        #expect(addedTag["isError"] as? Bool == false)
+
+        let created = service.call("quick_notes_create_note", arguments: [
+            "title": "Launch plan",
+            "content": "Ship the MCP server.",
+            "tags": ["Projects"],
+            "rendering_mode": "markdown"
+        ])
+        #expect(created["isError"] as? Bool == false)
+        let createdContent = try #require(created["structuredContent"] as? [String: Any])
+        let createdNote = try #require(createdContent["note"] as? [String: Any])
+        let noteID = try #require(createdNote["id"] as? String)
+
+        let listed = service.call("quick_notes_list_notes", arguments: ["tags": ["Projects"]])
+        let listedContent = try #require(listed["structuredContent"] as? [String: Any])
+        #expect(listedContent["total"] as? Int == 1)
+
+        let updated = service.call("quick_notes_update_note", arguments: [
+            "id": noteID,
+            "title": NSNull(),
+            "content": "Revised MCP plan.",
+            "tags": ["Projects"],
+            "rendering_mode": "markdown"
+        ])
+        #expect(updated["isError"] as? Bool == false)
+        let updatedContent = try #require(updated["structuredContent"] as? [String: Any])
+        let updatedNote = try #require(updatedContent["note"] as? [String: Any])
+        #expect(updatedNote["title"] is NSNull)
+        #expect(updatedNote["content"] as? String == "Revised MCP plan.")
+
+        let missingContent = service.call("quick_notes_update_note", arguments: ["id": noteID])
+        #expect(missingContent["isError"] as? Bool == true)
+        #expect((missingContent["content"] as? [[String: Any]])?.first?["text"] as? String == "content must be a string.")
+
+        let rejected = service.call("quick_notes_create_note", arguments: [
+            "content": "No implicit tags",
+            "tags": ["Missing"]
+        ])
+        #expect(rejected["isError"] as? Bool == true)
+        #expect((rejected["content"] as? [[String: Any]])?.first?["text"] as? String == "Unknown tag(s): Missing. Create them first with quick_notes_add_tag.")
     }
 
     @Test("Code highlight themes expose the curated HighlightSwift mapping")

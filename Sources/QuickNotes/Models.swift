@@ -11,6 +11,12 @@ struct Note: Identifiable, Equatable, Sendable {
     var expanded: Bool
 }
 
+enum NoteIdentifier {
+    static func string(for note: Note) -> String {
+        note.id.uuidString.lowercased()
+    }
+}
+
 enum NoteRenderingKind: String, CaseIterable, Identifiable, Sendable {
     case automatic
     case plainText
@@ -349,6 +355,31 @@ enum TitleSanitizer {
     static func sanitize(_ title: String) -> String? {
         let sanitized = title.trimmingCharacters(in: .whitespacesAndNewlines)
         return sanitized.isEmpty ? nil : sanitized
+    }
+}
+
+enum TagNamePolicy {
+    static let maximumCharacterCount = 10
+
+    static func validationError(for rawTag: String, existingTags: [String]) -> String? {
+        let tag = rawTag.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !tag.isEmpty else { return "Tag cannot be empty." }
+        guard tag.count <= maximumCharacterCount else {
+            return "Tag must be at most 10 characters."
+        }
+        guard !existingTags.contains(tag) else { return "This tag already exists." }
+
+        let allowed = CharacterSet.alphanumerics
+            .union(.whitespaces)
+            .union(CharacterSet(charactersIn: "-_"))
+        guard tag.rangeOfCharacter(from: allowed.inverted) == nil else {
+            return "Only letters, numbers, spaces, hyphens, and underscores are allowed."
+        }
+        return nil
+    }
+
+    static func sanitized(_ rawTag: String) -> String {
+        rawTag.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

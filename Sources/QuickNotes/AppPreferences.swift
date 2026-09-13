@@ -161,6 +161,7 @@ final class AppPreferences: ObservableObject {
         static let panelSize = "panelSize"
         static let displayLanguage = "displayLanguage"
         static let codeHighlightTheme = "codeHighlightTheme"
+        static let mcpServerEnabled = "mcpServerEnabled"
     }
 
     private let defaults: UserDefaults
@@ -189,6 +190,13 @@ final class AppPreferences: ObservableObject {
         }
     }
 
+    /// Controls whether a locally launched Agent may access the note library through MCP.
+    @Published var mcpServerEnabled: Bool {
+        didSet {
+            defaults.set(mcpServerEnabled, forKey: Key.mcpServerEnabled)
+        }
+    }
+
     var resolvedLanguage: SupportedAppLanguage {
         displayLanguage.resolvedLanguage()
     }
@@ -207,5 +215,10 @@ final class AppPreferences: ObservableObject {
         codeHighlightTheme = defaults.string(forKey: Key.codeHighlightTheme)
             .flatMap(CodeHighlightTheme.init(rawValue:))
             ?? .github
+        mcpServerEnabled = defaults.object(forKey: Key.mcpServerEnabled) as? Bool ?? true
+    }
+
+    static func isMCPServerEnabled(defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: Key.mcpServerEnabled) as? Bool ?? true
     }
 }

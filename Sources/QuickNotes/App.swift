@@ -2,6 +2,17 @@ import SwiftUI
 
 @main
 @MainActor
+struct QuickNotesLauncher {
+    static func main() {
+        if CommandLine.arguments.contains(QuickNotesMCPStdioConfiguration.launchArgument) {
+            QuickNotesMCPStdioServer.run()
+            return
+        }
+        QuickNotesApp.main()
+    }
+}
+
+@MainActor
 struct QuickNotesApp: App {
     @StateObject private var viewModel: NotesViewModel
     @StateObject private var preferences: AppPreferences

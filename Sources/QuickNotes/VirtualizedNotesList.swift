@@ -236,6 +236,7 @@ struct VirtualizedNotesList: View {
     @Binding var newlyCreatedNoteID: UUID?
     @Binding var isFilterBarShadowVisible: Bool
     let onCopy: (Note) -> Void
+    let onCopyIdentifier: (Note) -> Void
     let onToggleExpand: (Note) -> Void
     let onTogglePin: (Note) -> Void
     let onToggleTodo: (Note, Int) -> Void
@@ -281,6 +282,7 @@ struct VirtualizedNotesList: View {
                                     highlightQuery: highlightQuery,
                                     canTogglePin: note.isPinned || canPinMore,
                                     onCopy: onCopy,
+                                    onCopyIdentifier: onCopyIdentifier,
                                     onToggleExpand: onToggleExpand,
                                     onTogglePin: onTogglePin,
                                     onToggleTodo: onToggleTodo,

@@ -26,6 +26,7 @@
 "Unpin" = "取消釘選";
 "Pin" = "釘選";
 "Copied" = "已拷貝";
+"Copy Note ID" = "拷貝筆記 ID";
 "Copy" = "拷貝";
 "Edit" = "編輯";
 "Delete" = "刪除";
@@ -148,6 +149,19 @@
 " Ignored %lld note with identical title and content." = "忽略 %lld 則標題和內容相同的筆記。";
 " Ignored %lld notes with identical title and content." = "忽略 %lld 則標題和內容相同的筆記。";
 "OK" = "好";
+
+"MCP Server" = "MCP 服務";
+"Let a local Agent read and manage this library. The server uses a local subprocess, not a network address." = "允許本機 Agent 讀取及管理此資料庫。服務以本機子程序執行，不使用網路位址。";
+"Enable MCP Server" = "啟用 MCP 服務";
+"When disabled, Agents cannot connect or change your notes." = "關閉後，Agent 無法連線或更改你的筆記。";
+"Agent Installation Configuration" = "Agent 安裝設定";
+"Copy this configuration into your Agent’s MCP settings. It launches this app locally with no server address or open port." = "將此設定複製到 Agent 的 MCP 設定。它在本機啟動此 App，不需要服務位址或開放連接埠。";
+"Copy Configuration" = "拷貝設定";
+"Let a local Agent read and manage this library through a loopback HTTP address." = "允許本機 Agent 透過回環 HTTP 位址讀取及管理此資料庫。";
+"When enabled, this Mac listens only at the address below." = "啟用後，此 Mac 只會監聽下方位址。";
+"Agent MCP Address" = "Agent MCP 位址";
+"Copy this URL into your Agent’s MCP settings. It is available only while Quick Notes is running." = "將此 URL 複製到 Agent 的 MCP 設定中。僅在 Quick Notes 執行時可用。";
+"Copy Address" = "拷貝位址";
 
 "Version: %@ (%@)" = "版本：%@（%@）";
 "Unknown" = "未知";
