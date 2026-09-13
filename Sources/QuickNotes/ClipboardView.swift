@@ -25,7 +25,6 @@ struct ClipboardView: View {
                 highlightQuery: normalizedQuery.isEmpty ? nil : normalizedQuery
             )
         }
-        .background(AppTheme.canvas)
         .frame(minWidth: 520, minHeight: 280)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -177,10 +176,10 @@ struct ClipboardView: View {
                             )
                         }
                     }
-                    .background(AppTheme.canvas)
                 }
             }
         }
+        .background(AppTheme.canvas)
     }
 
 }

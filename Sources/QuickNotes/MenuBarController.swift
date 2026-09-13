@@ -191,6 +191,5 @@ private struct LocalizedAppContent: View {
             .environment(\.appLanguage, language)
             .environment(\.codeHighlightTheme, preferences.codeHighlightTheme)
             .id(language)
-            .panelSurface()
     }
 }

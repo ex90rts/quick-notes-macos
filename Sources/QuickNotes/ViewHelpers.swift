@@ -6,9 +6,9 @@ enum AppTheme {
     static let brandBlue = Color(red: 0.29, green: 0.53, blue: 0.91)
     static let brandBlueDeep = Color(red: 0.22, green: 0.47, blue: 0.84)
     static let pinnedGold = Color(red: 0.93, green: 0.65, blue: 0.16)
-    static let canvas = Color.clear
     static let surface = Color(nsColor: .controlBackgroundColor)
-    static let elevatedSurface = Color(nsColor: .textBackgroundColor)
+    static let canvas = surface.opacity(0.2)
+    static let elevatedSurface = Color(nsColor: .textBackgroundColor).opacity(0.8)
     static let inputSurface = Color(nsColor: .textBackgroundColor)
     static let modalSurface = Color(nsColor: .windowBackgroundColor)
     static let border = Color(nsColor: .separatorColor).opacity(0.72)
@@ -497,7 +497,6 @@ struct SubpageHeader<Trailing: View>: View {
         }
         .padding(.horizontal, AppSpacing.medium)
         .padding(.vertical, 10)
-        .background(AppTheme.canvas)
     }
 }
 
@@ -599,8 +598,6 @@ struct AppSheet<Content: View>: View {
             SheetHeader(title: title, language: language, closeAction: closeAction)
                 .padding(.horizontal, AppSpacing.large)
                 .padding(.vertical, AppSpacing.medium)
-
-            Divider()
 
             content
                 .padding(.horizontal, AppSpacing.large)

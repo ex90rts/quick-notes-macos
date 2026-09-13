@@ -306,7 +306,6 @@ struct VirtualizedNotesList: View {
                     .padding(AppSpacing.large)
                 }
             }
-            .background(AppTheme.canvas)
             .onPreferenceChange(NoteRowHeightPreferenceKey.self, perform: updateMeasuredHeights)
             .onScrollGeometryChange(for: NoteListViewport.self) { geometry in
                 let visibleRect = geometry.visibleRect

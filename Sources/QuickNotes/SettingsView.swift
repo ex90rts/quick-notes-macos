@@ -20,7 +20,6 @@ struct SettingsView: View {
             Divider()
             settingsContent
         }
-        .background(AppTheme.canvas)
         .frame(minWidth: 520, minHeight: 280)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .sheet(isPresented: $showTagSortSheet) {

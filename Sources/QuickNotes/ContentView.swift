@@ -209,7 +209,6 @@ struct NotesListView: View {
         }
         .frame(minWidth: 520, minHeight: 280)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(AppTheme.canvas)
         .background(alignment: .topLeading) {
             PasteShortcutMonitor(
                 isEnabled: !isHeaderMenuPresented && !vm.showAddNote && !vm.showAbout,
@@ -308,7 +307,6 @@ struct NotesListView: View {
             .help("More options")
         }
         .padding(AppSpacing.medium)
-        .background(AppTheme.canvas)
     }
 
     private var headerPasteLabel: some View {
@@ -453,7 +451,7 @@ struct NotesListView: View {
             tags: vm.tags,
             clipboardTag: vm.clipboardTag
         )
-        .background(AppTheme.surface)
+        .background(AppTheme.elevatedSurface)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(AppTheme.border)
@@ -526,6 +524,7 @@ struct NotesListView: View {
                 .allowsHitTesting(false)
             }
         }
+        .background(AppTheme.canvas)
         .sheet(isPresented: $vm.showAddNote) {
             AddNoteView(language: appLanguage)
                 .environmentObject(vm)
