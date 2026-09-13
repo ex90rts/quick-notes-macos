@@ -51,10 +51,6 @@ private struct PanelSurfaceModifier: ViewModifier {
     private var panelBackground: some View {
         if reduceTransparency {
             Color(nsColor: .windowBackgroundColor)
-        } else if #available(macOS 26.0, *) {
-            Color(nsColor: .windowBackgroundColor)
-                .opacity(PanelSurfaceMetrics.tintOpacity)
-                .glassEffect(.regular, in: Rectangle())
         } else {
             ZStack {
                 Rectangle().fill(.thinMaterial)
