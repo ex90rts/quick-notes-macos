@@ -105,6 +105,20 @@ enum PasteShortcutBehavior {
         let modifiers = modifierFlags.intersection(.deviceIndependentFlagsMask)
         return modifiers == .command
     }
+
+    static func shouldIntercept(
+        charactersIgnoringModifiers: String?,
+        modifierFlags: NSEvent.ModifierFlags,
+        isRepeat: Bool,
+        isTextInputFocused: Bool
+    ) -> Bool {
+        guard !isTextInputFocused else { return false }
+        return matches(
+            charactersIgnoringModifiers: charactersIgnoringModifiers,
+            modifierFlags: modifierFlags,
+            isRepeat: isRepeat
+        )
+    }
 }
 
 enum NoteCardLayout {
@@ -258,11 +272,13 @@ struct NoteContentLengthHint: View {
 
 struct PasteShortcutMonitor: NSViewRepresentable {
     let isEnabled: Bool
+    let isTextInputFocused: Bool
     let onPaste: @MainActor () -> Bool
 
     func makeNSView(context: Context) -> PasteShortcutMonitorView {
         let view = PasteShortcutMonitorView()
         view.isEnabled = isEnabled
+        view.isTextInputFocused = isTextInputFocused
         view.onPaste = onPaste
         view.startMonitoring()
         return view
@@ -270,6 +286,7 @@ struct PasteShortcutMonitor: NSViewRepresentable {
 
     func updateNSView(_ view: PasteShortcutMonitorView, context: Context) {
         view.isEnabled = isEnabled
+        view.isTextInputFocused = isTextInputFocused
         view.onPaste = onPaste
     }
 
@@ -283,6 +300,7 @@ struct PasteShortcutMonitor: NSViewRepresentable {
 
 final class PasteShortcutMonitorView: NSView {
     var isEnabled = false
+    var isTextInputFocused = false
     var onPaste: @MainActor () -> Bool = { false }
     private var eventMonitor: Any?
 
@@ -321,10 +339,11 @@ final class PasteShortcutMonitorView: NSView {
               NSApp.keyWindow === window,
               window.attachedSheet == nil,
               NSApp.modalWindow == nil,
-              PasteShortcutBehavior.matches(
+              PasteShortcutBehavior.shouldIntercept(
                   charactersIgnoringModifiers: charactersIgnoringModifiers,
                   modifierFlags: modifierFlags,
-                  isRepeat: isRepeat
+                  isRepeat: isRepeat,
+                  isTextInputFocused: isTextInputFocused
               ) else { return false }
 
         return onPaste()

@@ -73,10 +73,20 @@ struct QuickNotesTests {
     @Test("Code highlight themes expose the curated HighlightSwift mapping")
     func codeHighlightThemes() {
         #expect(CodeHighlightTheme.allCases.map(\.title) == [
-            "GitHub", "Xcode", "Atom One", "Solarized", "Tokyo Night"
+            "GitHub", "Xcode", "Atom One", "Solarized", "Tokyo Night",
+            "a11y", "Classic", "Edge", "Google", "Gradient", "Grayscale",
+            "Harmonic16", "Heetch", "Horizon", "Humanoid", "iA", "ISBL Editor",
+            "Kimbie", "NNFX", "Panda Syntax", "Papercolor", "Paraiso", "QT Creator",
+            "Silk", "Solar Flare", "StackOverflow", "Standard", "Summerfruit",
+            "Synth Midnight Terminal", "Unikitty"
         ])
         #expect(CodeHighlightTheme.allCases.map(\.highlightTheme.rawValue) == [
-            "GitHub", "Xcode", "Atom One", "Solarized", "Tokyo Night"
+            "GitHub", "Xcode", "Atom One", "Solarized", "Tokyo Night",
+            "a11y", "Classic", "Edge", "Google", "Gradient", "Grayscale",
+            "Harmonic16", "Heetch", "Horizon", "Humanoid", "iA", "ISBL Editor",
+            "Kimbie", "NNFX", "Panda Syntax", "Papercolor", "Paraiso", "QT Creator",
+            "Silk", "Solar Flare", "StackOverflow", "Standard", "Summerfruit",
+            "Synth Midnight Terminal", "Unikitty"
         ])
     }
 
@@ -201,15 +211,59 @@ struct QuickNotesTests {
         #expect(ContentSanitizer.sanitize(input) == "First line\n\nSecond line")
     }
 
-    @Test("Note content is limited to 2000 characters")
+    @Test("Note content is limited to 5000 characters")
     func noteContentLengthLimit() {
-        let maximumLengthContent = String(repeating: "a", count: 2_000)
+        let maximumLengthContent = String(repeating: "a", count: 5_000)
         let overLimitContent = maximumLengthContent + "b"
 
-        #expect(NoteContentPolicy.maximumCharacterCount == 2_000)
+        #expect(NoteContentPolicy.maximumCharacterCount == 5_000)
         #expect(NoteContentPolicy.canSave(maximumLengthContent))
         #expect(!NoteContentPolicy.canSave(overLimitContent))
         #expect(!NoteContentPolicy.canSave("  \n "))
+    }
+
+    @Test("New notes, edits, and imports share the 5000 character limit")
+    @MainActor
+    func noteContentLengthLimitAppliesToAllEntryPoints() throws {
+        let maximumLengthContent = String(repeating: "a", count: 5_000)
+        let overLimitContent = maximumLengthContent + "b"
+        let viewModel = try NotesViewModel(
+            repository: makeRepository(),
+            clipboardRepository: makeClipboardRepository(),
+            monitorsClipboard: false
+        )
+
+        #expect(viewModel.addNote(content: maximumLengthContent, tags: []))
+        let savedNote = try #require(viewModel.notes.first)
+        #expect(viewModel.updateNote(
+            savedNote,
+            title: "",
+            content: maximumLengthContent,
+            tags: [],
+            renderingMode: .markdown
+        ))
+        #expect(!viewModel.updateNote(
+            savedNote,
+            title: "",
+            content: overLimitContent,
+            tags: [],
+            renderingMode: .markdown
+        ))
+
+        let document = MarkdownExporter.document(
+            notes: [
+                Note(
+                    id: UUID(),
+                    content: maximumLengthContent,
+                    tags: [],
+                    timestamp: Date(timeIntervalSince1970: 1),
+                    expanded: false
+                )
+            ],
+            exportedAt: Date(timeIntervalSince1970: 2)
+        )
+        let importedNote = try #require(MarkdownImporter.notes(from: document).first)
+        #expect(importedNote.content == maximumLengthContent)
     }
 
     @Test("Optional titles are trimmed and blank titles are omitted")
@@ -658,6 +712,18 @@ struct QuickNotesTests {
             charactersIgnoringModifiers: "v",
             modifierFlags: .command,
             isRepeat: true
+        ))
+        #expect(!PasteShortcutBehavior.shouldIntercept(
+            charactersIgnoringModifiers: "v",
+            modifierFlags: .command,
+            isRepeat: false,
+            isTextInputFocused: true
+        ))
+        #expect(PasteShortcutBehavior.shouldIntercept(
+            charactersIgnoringModifiers: "v",
+            modifierFlags: .command,
+            isRepeat: false,
+            isTextInputFocused: false
         ))
     }
 

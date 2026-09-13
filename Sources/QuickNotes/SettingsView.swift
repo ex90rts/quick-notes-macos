@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var exportSucceeded = false
     @State private var isExportTooltipVisible = false
     @State private var importAlert: SettingsImportAlert?
+    @State private var isCodeHighlightPreviewExpanded = false
     @FocusState private var isTagInputFocused: Bool
 
     var body: some View {
@@ -33,10 +34,16 @@ struct SettingsView: View {
                 dismissButton: .default(Text("OK"))
             )
         }
+        .onChange(of: vm.isPanelPresented) { _, isPresented in
+            if !isPresented {
+                isCodeHighlightPreviewExpanded = false
+            }
+        }
     }
 
     private var header: some View {
         SubpageHeader(title: "Settings") {
+            isCodeHighlightPreviewExpanded = false
             vm.currentView = .notesList
         }
     }
@@ -184,27 +191,36 @@ struct SettingsView: View {
 
                 SettingsDashedDivider()
 
-                SettingsControlRow(
-                    title: "Code Highlight Theme",
-                    description: "Code highlighting color scheme for code in note content."
-                ) {
-                    HStack(spacing: AppSpacing.small) {
-                        Picker("", selection: $preferences.codeHighlightTheme) {
-                            ForEach(CodeHighlightTheme.allCases) { theme in
-                                Text(verbatim: theme.title)
-                                    .tag(theme)
+                VStack(alignment: .leading, spacing: 0) {
+                    SettingsControlRow(
+                        title: "Code Highlight Theme",
+                        description: "Code highlighting color scheme for code in note content."
+                    ) {
+                        HStack(spacing: AppSpacing.small) {
+                            Picker("", selection: $preferences.codeHighlightTheme) {
+                                ForEach(CodeHighlightTheme.allCases) { theme in
+                                    Text(verbatim: theme.title)
+                                        .tag(theme)
+                                }
                             }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .controlSize(.large)
-                        .frame(
-                            width: 150,
-                            height: AppControlMetrics.formControlHeight
-                        )
-                        .accessibilityLabel(Text("Code highlight theme"))
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .controlSize(.large)
+                            .frame(
+                                width: 150,
+                                height: AppControlMetrics.formControlHeight
+                            )
+                            .accessibilityLabel(Text("Code highlight theme"))
 
-                        CodeHighlightThemePreviewButton(theme: preferences.codeHighlightTheme)
+                            CodeHighlightThemePreviewButton(
+                                isPreviewExpanded: $isCodeHighlightPreviewExpanded
+                            )
+                        }
+                    }
+
+                    if isCodeHighlightPreviewExpanded {
+                        CodeHighlightThemePreview(theme: preferences.codeHighlightTheme)
+                            .padding(.top, AppSpacing.medium)
                     }
                 }
                 .padding(.top, AppSpacing.medium)
@@ -446,47 +462,58 @@ private struct SettingsImportAlert: Identifiable {
 }
 
 private struct CodeHighlightThemePreviewButton: View {
-    let theme: CodeHighlightTheme
-    @State private var isHovering = false
-    @State private var isPreviewPresented = false
+    private static let size: CGFloat = 26
+    @Binding var isPreviewExpanded: Bool
 
     var body: some View {
-        Image(systemName: "eye")
-            .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(isHovering ? AppTheme.brandBlue : Color.secondary)
-            .frame(
-                width: AppControlMetrics.formControlHeight,
-                height: AppControlMetrics.formControlHeight
-            )
-            .background(isHovering ? AppTheme.selectedFill : AppTheme.quietFill)
-            .clipShape(.rect(cornerRadius: AppControlMetrics.inputCornerRadius))
-            .overlay {
-                RoundedRectangle(cornerRadius: AppControlMetrics.inputCornerRadius)
-                    .stroke(AppTheme.border)
-            }
-            .contentShape(.rect)
-            .onHover { hovering in
-                isHovering = hovering
-                isPreviewPresented = hovering
-            }
-            .popover(isPresented: $isPreviewPresented, arrowEdge: .trailing) {
-                CodeHighlightThemePreview(theme: theme)
-            }
-            .help("Preview code highlight theme")
-            .accessibilityElement()
-            .accessibilityLabel(Text("Preview code highlight theme"))
+        Button {
+            isPreviewExpanded.toggle()
+        } label: {
+            Image(systemName: isPreviewExpanded ? "eye.slash" : "eye")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(
+                    isPreviewExpanded ? AppTheme.brandBlue : Color.secondary
+                )
+                .frame(
+                    width: Self.size,
+                    height: Self.size
+                )
+                .background(
+                    isPreviewExpanded ? AppTheme.selectedFill : AppTheme.quietFill
+                )
+                .clipShape(.rect(cornerRadius: AppControlMetrics.inputCornerRadius))
+                .overlay {
+                    RoundedRectangle(cornerRadius: AppControlMetrics.inputCornerRadius)
+                        .stroke(isPreviewExpanded ? AppTheme.brandBlue : AppTheme.border)
+                }
+        }
+        .buttonStyle(.plain)
+        .contentShape(.rect)
+        .accessibilityLabel(
+            Text(isPreviewExpanded ? "Close code highlight preview" : "Open code highlight preview")
+        )
     }
 }
 
 private struct CodeHighlightThemePreview: View {
     let theme: CodeHighlightTheme
 
-    private let sample = """
+    private let swiftSample = """
     struct Note: Identifiable {
         let id = UUID()
-        let title: String
         var isPinned = false
     }
+    """
+    private let javascriptSample = """
+    const note = { pinned: true };
+    console.log(note);
+    """
+    private let jsonSample = """
+    { "title": "Quick Notes", "pinned": true }
+    """
+    private let rustSample = """
+    let note = Note { pinned: true };
+    println!("{note:?}");
     """
 
     var body: some View {
@@ -494,13 +521,33 @@ private struct CodeHighlightThemePreview: View {
             Text(verbatim: theme.title)
                 .font(.system(size: 13, weight: .semibold))
 
+            previewSnippet("Swift", code: swiftSample, language: .swift)
+            previewSnippet("JavaScript", code: javascriptSample, language: .javaScript)
+            previewSnippet("JSON", code: jsonSample, language: .json)
+            previewSnippet("Rust", code: rustSample, language: .rust)
+        }
+        .padding(AppSpacing.large)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppTheme.elevatedSurface)
+    }
+
+    private func previewSnippet(
+        _ title: String,
+        code: String,
+        language: HighlightLanguage
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(verbatim: title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+
             ScrollView(.horizontal) {
-                CodeText(sample)
-                    .highlightLanguage(.swift)
+                CodeText(code)
+                    .highlightLanguage(language)
                     .codeTextColors(.theme(theme.highlightTheme))
-                    .font(.system(size: 12, design: .monospaced))
+                    .font(.system(size: 11, design: .monospaced))
                     .fixedSize(horizontal: true, vertical: true)
-                    .padding(AppSpacing.medium)
+                    .padding(8)
             }
             .scrollIndicators(.hidden)
             .background(AppTheme.quietFill)
@@ -510,9 +557,6 @@ private struct CodeHighlightThemePreview: View {
                     .stroke(AppTheme.border)
             }
         }
-        .padding(AppSpacing.large)
-        .frame(width: 360, alignment: .leading)
-        .background(AppTheme.elevatedSurface)
     }
 }
 

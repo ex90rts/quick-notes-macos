@@ -71,7 +71,6 @@ struct NoteListHeightIndex {
 
 enum NewNoteRevealBehavior {
     static let defaultViewportHeight: CGFloat = 320
-    static let scrollAnimationDuration = 0.42
     static let targetRenderDelayMilliseconds = 24
     static let scrollSettleDelayMilliseconds = 140
 
@@ -392,16 +391,11 @@ struct VirtualizedNotesList: View {
                     )
                 }
                 guard !Task.isCancelled, newlyCreatedNoteID == noteID else { return }
-                let scrollAnimation = Animation.easeInOut(
-                    duration: NewNoteRevealBehavior.scrollAnimationDuration
-                )
                 if shouldWaitForScrollCompletion {
                     pendingAttentionNoteID = noteID
                     scrollSettleObserver.begin(noteID: noteID)
                 }
-                withAnimation(scrollAnimation) {
-                    proxy.scrollTo(noteID, anchor: .center)
-                }
+                proxy.scrollTo(noteID, anchor: .center)
             }
             .task(id: attentionNoteID) {
                 guard let noteID = attentionNoteID else { return }

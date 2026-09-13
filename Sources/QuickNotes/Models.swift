@@ -305,7 +305,7 @@ struct ClipboardItem: Identifiable, Equatable, Sendable {
 }
 
 enum NoteContentPolicy {
-    static let maximumCharacterCount = 2_000
+    static let maximumCharacterCount = 5_000
 
     static func isWithinLimit(_ content: String) -> Bool {
         content.count <= maximumCharacterCount

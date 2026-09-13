@@ -25,6 +25,7 @@ struct TagFilterFlowLayout: View {
     @Binding var searchQuery: String
     let tags: [String]
     let clipboardTag: String
+    @Binding var isSearchFieldFocused: Bool
     @State private var isSearchButtonHovering = false
     @State private var isCloseSearchHovering = false
     @State private var hoveredTag: String?
@@ -41,6 +42,15 @@ struct TagFilterFlowLayout: View {
             }
         }
         .animation(.easeInOut(duration: 0.18), value: isSearchPresented)
+        .onChange(of: isSearchFocused) { _, isFocused in
+            isSearchFieldFocused = isFocused
+        }
+        .onChange(of: isSearchPresented) { _, isPresented in
+            if !isPresented {
+                isSearchFocused = false
+                isSearchFieldFocused = false
+            }
+        }
         .frame(minHeight: NotesFilterBarLayout.controlHeight, alignment: .top)
         .padding(.horizontal, AppSpacing.medium)
         .padding(.vertical, NotesFilterBarLayout.verticalPadding)
@@ -78,6 +88,7 @@ struct TagFilterFlowLayout: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             Button {
+                isSearchFieldFocused = true
                 withAnimation(.easeInOut(duration: 0.18)) {
                     isSearchPresented = true
                 }
@@ -140,10 +151,7 @@ struct TagFilterFlowLayout: View {
             }
 
             Button {
-                searchQuery = ""
-                withAnimation(.easeInOut(duration: 0.18)) {
-                    isSearchPresented = false
-                }
+                closeSearch()
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 11, weight: .semibold))
@@ -188,6 +196,15 @@ struct TagFilterFlowLayout: View {
     private func isSelected(_ tag: String) -> Bool {
         tag == "All" ? selectedTagFilter.isEmpty : selectedTagFilter == tag
     }
+
+    private func closeSearch() {
+        searchQuery = ""
+        isSearchFocused = false
+        isSearchFieldFocused = false
+        withAnimation(.easeInOut(duration: 0.18)) {
+            isSearchPresented = false
+        }
+    }
 }
 
 struct NotesListView: View {
@@ -199,6 +216,7 @@ struct NotesListView: View {
     @State private var clipboardNoteContent: String?
     @State private var clipboardChangeCount = -1
     @State private var isFilterBarShadowVisible = false
+    @State private var isSearchFieldFocused = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -212,6 +230,7 @@ struct NotesListView: View {
         .background(alignment: .topLeading) {
             PasteShortcutMonitor(
                 isEnabled: !isHeaderMenuPresented && !vm.showAddNote && !vm.showAbout,
+                isTextInputFocused: isSearchFieldFocused,
                 onPaste: addNoteFromClipboard
             )
             .frame(width: 1, height: 1)
@@ -449,7 +468,8 @@ struct NotesListView: View {
             isSearchPresented: $vm.isSearchPresented,
             searchQuery: $vm.searchQuery,
             tags: vm.tags,
-            clipboardTag: vm.clipboardTag
+            clipboardTag: vm.clipboardTag,
+            isSearchFieldFocused: $isSearchFieldFocused
         )
         .background(AppTheme.elevatedSurface)
         .overlay(alignment: .bottom) {
