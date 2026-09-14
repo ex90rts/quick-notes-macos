@@ -56,6 +56,7 @@ struct QuickNotesTests {
         #expect(initialPreferences.displayLanguage == .automatic)
         #expect(initialPreferences.codeHighlightTheme == .github)
         #expect(initialPreferences.mcpServerEnabled)
+        #expect(!initialPreferences.mcpDeletionEnabled)
         #expect(PanelSize.small.contentSize == CGSize(width: 520, height: 600))
 
         initialPreferences.menuBarIconStyle = .monochrome
@@ -63,12 +64,14 @@ struct QuickNotesTests {
         initialPreferences.displayLanguage = .traditionalChinese
         initialPreferences.codeHighlightTheme = .tokyoNight
         initialPreferences.mcpServerEnabled = false
+        initialPreferences.mcpDeletionEnabled = true
         let restoredPreferences = AppPreferences(defaults: defaults)
         #expect(restoredPreferences.menuBarIconStyle == .monochrome)
         #expect(restoredPreferences.panelSize == .large)
         #expect(restoredPreferences.displayLanguage == .traditionalChinese)
         #expect(restoredPreferences.codeHighlightTheme == .tokyoNight)
         #expect(!restoredPreferences.mcpServerEnabled)
+        #expect(restoredPreferences.mcpDeletionEnabled)
         #expect(PanelSize.medium.contentSize == CGSize(width: 620, height: 720))
         #expect(restoredPreferences.panelSize.contentSize == CGSize(width: 720, height: 840))
     }
@@ -89,6 +92,52 @@ struct QuickNotesTests {
         #expect(quickNotes["args"] as? [String] == ["--mcp"])
     }
 
+    @Test("Bundled Agent skills install into the user's Agent skill scope")
+    func agentSkillInstaller() throws {
+        let fileManager = FileManager.default
+        let rootURL = fileManager.temporaryDirectory.appendingPathComponent(
+            "QuickNotesTests.SkillInstaller.\(UUID().uuidString)",
+            isDirectory: true
+        )
+        defer { try? fileManager.removeItem(at: rootURL) }
+
+        let sourceURL = rootURL.appendingPathComponent("source", isDirectory: true)
+        try fileManager.createDirectory(at: sourceURL, withIntermediateDirectories: true)
+        let skillURL = sourceURL.appendingPathComponent("SKILL.md")
+        try "---\nname: quick-notes\ndescription: Test skill\n---\n".write(
+            to: skillURL,
+            atomically: true,
+            encoding: .utf8
+        )
+        #expect(try QuickNotesAgentSkillInstaller.skillMarkdown(from: sourceURL)
+            .contains("name: quick-notes"))
+
+        let homeURL = rootURL.appendingPathComponent("home", isDirectory: true)
+        let destinationURL = QuickNotesAgentSkillInstaller.installationURL(
+            homeDirectory: homeURL
+        )
+        #expect(destinationURL.path == rootURL.appendingPathComponent(
+            "home/.agents/skills/quick-notes"
+        ).path)
+
+        let installedURL = try QuickNotesAgentSkillInstaller.install(
+            from: sourceURL,
+            to: destinationURL
+        )
+        #expect(installedURL == destinationURL)
+        #expect(try String(contentsOf: installedURL.appendingPathComponent("SKILL.md"), encoding: .utf8)
+            .contains("description: Test skill"))
+
+        try "---\nname: quick-notes\ndescription: Updated test skill\n---\n".write(
+            to: skillURL,
+            atomically: true,
+            encoding: .utf8
+        )
+        _ = try QuickNotesAgentSkillInstaller.install(from: sourceURL, to: destinationURL)
+        #expect(try String(contentsOf: installedURL.appendingPathComponent("SKILL.md"), encoding: .utf8)
+            .contains("description: Updated test skill"))
+    }
+
     @Test("Note identifiers use canonical lowercase UUID text")
     func noteIdentifier() {
         let note = Note(
@@ -102,7 +151,7 @@ struct QuickNotesTests {
         #expect(NoteIdentifier.string(for: note) == "a953026f-75dd-4ad1-96cc-e058b589077c")
     }
 
-    @Test("MCP service lists, creates, updates, and tags notes without deletion")
+    @Test("MCP service lists, creates, updates, tags, and gates deletion")
     @MainActor
     func mcpServiceOperations() throws {
         let repository = try makeRepository()
@@ -111,6 +160,7 @@ struct QuickNotesTests {
         let toolNames = service.toolDefinitions.compactMap { $0["name"] as? String }
         #expect(toolNames == [
             "quick_notes_list_notes",
+            "quick_notes_list_tags",
             "quick_notes_create_note",
             "quick_notes_update_note",
             "quick_notes_add_tag"
@@ -125,6 +175,10 @@ struct QuickNotesTests {
 
         let addedTag = service.call("quick_notes_add_tag", arguments: ["name": "Projects"])
         #expect(addedTag["isError"] as? Bool == false)
+
+        let tags = service.call("quick_notes_list_tags", arguments: [:])
+        let tagContent = try #require(tags["structuredContent"] as? [String: Any])
+        #expect(tagContent["tags"] as? [String] == ["Projects"])
 
         let created = service.call("quick_notes_create_note", arguments: [
             "title": "Launch plan",
@@ -164,6 +218,35 @@ struct QuickNotesTests {
         ])
         #expect(rejected["isError"] as? Bool == true)
         #expect((rejected["content"] as? [[String: Any]])?.first?["text"] as? String == "Unknown tag(s): Missing. Create them first with quick_notes_add_tag.")
+
+        let blockedDeletion = service.call("quick_notes_delete_note", arguments: ["id": noteID])
+        #expect(blockedDeletion["isError"] as? Bool == true)
+        #expect((blockedDeletion["content"] as? [[String: Any]])?.first?["text"] as? String == "MCP deletion is disabled in Quick Notes settings. Enable Allow MCP Delete before deleting notes or tags.")
+
+        let deletionService = QuickNotesMCPService(
+            repository: repository,
+            deletionPermission: { true }
+        )
+        #expect(deletionService.toolDefinitions.compactMap { $0["name"] as? String } == [
+            "quick_notes_list_notes",
+            "quick_notes_list_tags",
+            "quick_notes_create_note",
+            "quick_notes_update_note",
+            "quick_notes_add_tag",
+            "quick_notes_delete_note",
+            "quick_notes_delete_tag"
+        ])
+
+        let associatedTag = deletionService.call("quick_notes_delete_tag", arguments: ["tag": "Projects"])
+        #expect(associatedTag["isError"] as? Bool == true)
+        #expect((associatedTag["content"] as? [[String: Any]])?.first?["text"] as? String == "Tag 'Projects' is still assigned to one or more notes and cannot be deleted.")
+
+        let deletedNote = deletionService.call("quick_notes_delete_note", arguments: ["id": noteID])
+        #expect(deletedNote["isError"] as? Bool == false)
+        let deletedTag = deletionService.call("quick_notes_delete_tag", arguments: ["tag": "Projects"])
+        #expect(deletedTag["isError"] as? Bool == false)
+        #expect(try repository.fetchNotes().isEmpty)
+        #expect(try repository.fetchTags().isEmpty)
     }
 
     @Test("Code highlight themes expose the curated HighlightSwift mapping")

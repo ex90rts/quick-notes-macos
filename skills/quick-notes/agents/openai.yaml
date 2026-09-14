@@ -1,0 +1,4 @@
+interface:
+  display_name: "Quick Notes"
+  short_description: "Capture and organize Quick Notes through local MCP"
+  default_prompt: "Use $quick-notes to take this into Quick Notes."

@@ -8,6 +8,7 @@ info_plist="$project_dir/Info.plist"
 scratch_dir="$project_dir/.build/release-arm64"
 dist_dir="$project_dir/dist"
 resources_dir="$project_dir/Resources"
+agent_skill_dir="$project_dir/skills/quick-notes"
 
 bundle_name="QuickNotes.app"
 release_version=$(/usr/bin/plutil -extract CFBundleShortVersionString raw "$info_plist")
@@ -22,6 +23,7 @@ disk_image_name="$package_basename.dmg"
 output_app="$dist_dir/$bundle_name"
 output_archive="$dist_dir/$archive_name"
 output_disk_image="$dist_dir/$disk_image_name"
+highlight_bundle_name="HighlightSwift_HighlightSwift.bundle"
 
 staging_dir=$(mktemp -d "${TMPDIR%/}/quicknotes-release.XXXXXX")
 trap '/bin/rm -rf -- "$staging_dir"' EXIT
@@ -37,9 +39,16 @@ xcrun swift test --arch arm64 --scratch-path "$scratch_dir"
 xcrun swift build -c release --arch arm64 --scratch-path "$scratch_dir"
 binary_dir=$(xcrun swift build -c release --arch arm64 --scratch-path "$scratch_dir" --show-bin-path)
 binary_path="$binary_dir/QuickNotes"
+highlight_bundle="$binary_dir/$highlight_bundle_name"
+highlight_script="$highlight_bundle/Contents/Resources/highlight.min.js"
 
 [[ -x "$binary_path" ]] || { print -u2 "Release executable not found: $binary_path"; exit 3; }
+[[ -f "$highlight_script" ]] || {
+    print -u2 "HighlightSwift resource bundle is incomplete: $highlight_script"
+    exit 3
+}
 [[ -d "$resources_dir" ]] || { print -u2 "App resources not found: $resources_dir"; exit 4; }
+[[ -f "$agent_skill_dir/SKILL.md" ]] || { print -u2 "Quick Notes Agent skill not found: $agent_skill_dir/SKILL.md"; exit 4; }
 icon_source="$resources_dir/AppIcon.png"
 [[ -f "$icon_source" ]] || { print -u2 "App icon source not found: $icon_source"; exit 5; }
 [[ -f "$resources_dir/MenuBarIcon@black.png" ]] || { print -u2 "Black menu bar icon not found"; exit 5; }
@@ -49,11 +58,26 @@ icon_source="$resources_dir/AppIcon.png"
 /usr/bin/install -m 755 "$binary_path" "$staged_app/Contents/MacOS/QuickNotes"
 /usr/bin/install -m 644 "$info_plist" "$staged_app/Contents/Info.plist"
 /usr/bin/ditto "$resources_dir" "$staged_app/Contents/Resources"
+/bin/mkdir -p "$staged_app/Contents/Resources/AgentSkills"
+/usr/bin/ditto "$agent_skill_dir" \
+    "$staged_app/Contents/Resources/AgentSkills/quick-notes"
+/usr/bin/ditto "$highlight_bundle" \
+    "$staged_app/Contents/Resources/$highlight_bundle_name"
 dependency_resource_bundles=("$binary_dir"/*.bundle(N))
 for resource_bundle in "${dependency_resource_bundles[@]}"; do
+    [[ "${resource_bundle:t}" == "$highlight_bundle_name" ]] && continue
     /usr/bin/ditto "$resource_bundle" \
         "$staged_app/Contents/Resources/${resource_bundle:t}"
 done
+staged_highlight_script="$staged_app/Contents/Resources/$highlight_bundle_name/Contents/Resources/highlight.min.js"
+[[ -s "$staged_highlight_script" ]] || {
+    print -u2 "HighlightSwift resource was not packaged: $staged_highlight_script"
+    exit 8
+}
+[[ -f "$staged_app/Contents/Resources/AgentSkills/quick-notes/SKILL.md" ]] || {
+    print -u2 "Quick Notes Agent skill was not packaged."
+    exit 8
+}
 
 iconset_dir="$staging_dir/AppIcon.iconset"
 /bin/mkdir -p "$iconset_dir"

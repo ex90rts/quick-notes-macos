@@ -166,14 +166,19 @@ enum QuickNotesMCPProtocol {
 @MainActor
 final class QuickNotesMCPService {
     private let repository: any NotesRepository
+    private let deletionPermission: () -> Bool
     private let iso8601Formatter = ISO8601DateFormatter()
 
-    init(repository: any NotesRepository) {
+    init(
+        repository: any NotesRepository,
+        deletionPermission: @escaping () -> Bool = { AppPreferences.isMCPDeletionEnabled() }
+    ) {
         self.repository = repository
+        self.deletionPermission = deletionPermission
     }
 
     var toolDefinitions: [[String: Any]] {
-        [
+        var definitions: [[String: Any]] = [
             tool(
                 name: "quick_notes_list_notes",
                 title: "List Quick Notes",
@@ -185,6 +190,18 @@ final class QuickNotesMCPService {
                         "limit": integerSchema(description: "Maximum notes to return, from 1 to 1,000. Defaults to 100.", minimum: 1, maximum: 1_000),
                         "offset": integerSchema(description: "Number of matching notes to skip. Defaults to 0.", minimum: 0, maximum: Int.max)
                     ],
+                    "additionalProperties": false
+                ],
+                readOnly: true,
+                idempotent: true
+            ),
+            tool(
+                name: "quick_notes_list_tags",
+                title: "List Quick Notes Tags",
+                description: "Read every tag in the local Quick Notes library. Use these exact values when creating or updating a note.",
+                inputSchema: [
+                    "type": "object",
+                    "properties": [:],
                     "additionalProperties": false
                 ],
                 readOnly: true,
@@ -233,7 +250,7 @@ final class QuickNotesMCPService {
             tool(
                 name: "quick_notes_add_tag",
                 title: "Add Quick Notes Tag",
-                description: "Add a tag to the local Quick Notes library. Tag deletion is intentionally not available through MCP.",
+                description: "Add a tag to the local Quick Notes library.",
                 inputSchema: [
                     "type": "object",
                     "properties": [
@@ -246,6 +263,43 @@ final class QuickNotesMCPService {
                 idempotent: false
             )
         ]
+
+        if deletionPermission() {
+            definitions.append(contentsOf: [
+                tool(
+                    name: "quick_notes_delete_note",
+                    title: "Delete Quick Note",
+                    description: "Permanently delete one note. Only call after the user explicitly identifies the note as #<UUID>; pass that UUID without the # as id.",
+                    inputSchema: [
+                        "type": "object",
+                        "properties": [
+                            "id": stringSchema(description: "The UUID from the user-specified #<UUID> note identifier.", minimum: 36, maximum: 36)
+                        ],
+                        "required": ["id"],
+                        "additionalProperties": false
+                    ],
+                    readOnly: false,
+                    idempotent: true
+                ),
+                tool(
+                    name: "quick_notes_delete_tag",
+                    title: "Delete Unused Quick Notes Tag",
+                    description: "Permanently delete an unused tag. The tag value must exactly match an existing tag and cannot be attached to any note.",
+                    inputSchema: [
+                        "type": "object",
+                        "properties": [
+                            "tag": stringSchema(description: "The exact existing tag value to delete; matching is case-sensitive and is not normalized.", minimum: 1, maximum: TagNamePolicy.maximumCharacterCount)
+                        ],
+                        "required": ["tag"],
+                        "additionalProperties": false
+                    ],
+                    readOnly: false,
+                    idempotent: true
+                )
+            ])
+        }
+
+        return definitions
     }
 
     func call(_ name: String, arguments: [String: Any]) -> [String: Any] {
@@ -255,6 +309,9 @@ final class QuickNotesMCPService {
             case "quick_notes_list_notes":
                 try validateArguments(arguments, allowed: ["tags", "limit", "offset"])
                 result = try listNotes(arguments)
+            case "quick_notes_list_tags":
+                try validateArguments(arguments, allowed: [])
+                result = try listTags()
             case "quick_notes_create_note":
                 try validateArguments(arguments, allowed: ["title", "content", "tags", "rendering_mode", "code_language", "is_pinned"])
                 result = try createNote(arguments)
@@ -264,6 +321,14 @@ final class QuickNotesMCPService {
             case "quick_notes_add_tag":
                 try validateArguments(arguments, allowed: ["name"])
                 result = try addTag(arguments)
+            case "quick_notes_delete_note":
+                try requireDeletionPermission()
+                try validateArguments(arguments, allowed: ["id"])
+                result = try deleteNote(arguments)
+            case "quick_notes_delete_tag":
+                try requireDeletionPermission()
+                try validateArguments(arguments, allowed: ["tag"])
+                result = try deleteTag(arguments)
             default: return toolError("Unknown tool: \(name).")
             }
             let text = try prettyJSON(result)
@@ -294,6 +359,11 @@ final class QuickNotesMCPService {
             "has_more": offset + page.count < matchingNotes.count,
             "next_offset": offset + page.count < matchingNotes.count ? offset + page.count : NSNull()
         ]
+    }
+
+    private func listTags() throws -> [String: Any] {
+        let tags = try repository.fetchTags()
+        return ["count": tags.count, "tags": tags]
     }
 
     private func createNote(_ arguments: [String: Any]) throws -> [String: Any] {
@@ -357,6 +427,35 @@ final class QuickNotesMCPService {
         try repository.insertTag(name)
         QuickNotesLibraryChange.post()
         return ["tag": name]
+    }
+
+    private func deleteNote(_ arguments: [String: Any]) throws -> [String: Any] {
+        let id = try requiredUUID(arguments, key: "id")
+        guard try repository.fetchNotes().contains(where: { $0.id == id }) else {
+            throw MCPToolError("No note exists with ID \(id.uuidString). Read notes first to obtain a valid note ID.")
+        }
+        try repository.deleteNote(id: id)
+        QuickNotesLibraryChange.post()
+        return ["deleted_note_id": id.uuidString.lowercased()]
+    }
+
+    private func deleteTag(_ arguments: [String: Any]) throws -> [String: Any] {
+        let tag = try requiredString(arguments, key: "tag")
+        guard try repository.fetchTags().contains(tag) else {
+            throw MCPToolError("No tag exactly matching '\(tag)' exists.")
+        }
+        guard !(try repository.fetchNotes()).contains(where: { $0.tags.contains(tag) }) else {
+            throw MCPToolError("Tag '\(tag)' is still assigned to one or more notes and cannot be deleted.")
+        }
+        try repository.deleteTag(tag)
+        QuickNotesLibraryChange.post()
+        return ["deleted_tag": tag]
+    }
+
+    private func requireDeletionPermission() throws {
+        guard deletionPermission() else {
+            throw MCPToolError("MCP deletion is disabled in Quick Notes settings. Enable Allow MCP Delete before deleting notes or tags.")
+        }
     }
 
     private func validateExistingTags(_ tags: [String]) throws {

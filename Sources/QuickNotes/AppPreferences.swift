@@ -162,6 +162,7 @@ final class AppPreferences: ObservableObject {
         static let displayLanguage = "displayLanguage"
         static let codeHighlightTheme = "codeHighlightTheme"
         static let mcpServerEnabled = "mcpServerEnabled"
+        static let mcpDeletionEnabled = "mcpDeletionEnabled"
     }
 
     private let defaults: UserDefaults
@@ -197,6 +198,13 @@ final class AppPreferences: ObservableObject {
         }
     }
 
+    /// Controls whether a locally launched Agent may delete notes or tags through MCP.
+    @Published var mcpDeletionEnabled: Bool {
+        didSet {
+            defaults.set(mcpDeletionEnabled, forKey: Key.mcpDeletionEnabled)
+        }
+    }
+
     var resolvedLanguage: SupportedAppLanguage {
         displayLanguage.resolvedLanguage()
     }
@@ -216,9 +224,14 @@ final class AppPreferences: ObservableObject {
             .flatMap(CodeHighlightTheme.init(rawValue:))
             ?? .github
         mcpServerEnabled = defaults.object(forKey: Key.mcpServerEnabled) as? Bool ?? true
+        mcpDeletionEnabled = defaults.object(forKey: Key.mcpDeletionEnabled) as? Bool ?? false
     }
 
     static func isMCPServerEnabled(defaults: UserDefaults = .standard) -> Bool {
         defaults.object(forKey: Key.mcpServerEnabled) as? Bool ?? true
+    }
+
+    static func isMCPDeletionEnabled(defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: Key.mcpDeletionEnabled) as? Bool ?? false
     }
 }

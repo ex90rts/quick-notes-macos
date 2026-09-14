@@ -13,7 +13,10 @@ struct SettingsView: View {
     @State private var isExportTooltipVisible = false
     @State private var importAlert: SettingsImportAlert?
     @State private var isCodeHighlightPreviewExpanded = false
+    @State private var isMCPConfigurationExpanded = false
     @State private var mcpConfigurationCopied = false
+    @State private var agentSkillActionMessage: String?
+    @State private var agentSkillActionSucceeded = false
     @FocusState private var isTagInputFocused: Bool
 
     var body: some View {
@@ -38,6 +41,7 @@ struct SettingsView: View {
         .onChange(of: vm.isPanelPresented) { _, isPresented in
             if !isPresented {
                 isCodeHighlightPreviewExpanded = false
+                isMCPConfigurationExpanded = false
             }
         }
     }
@@ -45,6 +49,7 @@ struct SettingsView: View {
     private var header: some View {
         SubpageHeader(title: "Settings") {
             isCodeHighlightPreviewExpanded = false
+            isMCPConfigurationExpanded = false
             vm.currentView = .notesList
         }
     }
@@ -331,18 +336,43 @@ struct SettingsView: View {
 
                 SettingsDashedDivider()
 
-                HStack(alignment: .center, spacing: AppSpacing.medium) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Agent Installation Configuration")
-                            .font(.system(size: 13, weight: .medium))
-                        Text(verbatim: QuickNotesMCPStdioConfiguration.configuration)
-                            .font(.system(.caption, design: .monospaced))
-                            .textSelection(.enabled)
-                            .foregroundStyle(.secondary)
-                        Text("Copy this configuration into your Agent’s MCP settings. It launches this app locally with no server address or open port.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                SettingsControlRow(
+                    title: "Allow MCP Delete",
+                    description: "When enabled, Agents can delete a note by its ID or an unused tag by its exact name."
+                ) {
+                    Toggle("Allow MCP Delete", isOn: $preferences.mcpDeletionEnabled)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .tint(AppTheme.brandBlue)
+                        .accessibilityLabel("Allow MCP Delete")
+                }
+
+                SettingsDashedDivider()
+
+                HStack(spacing: AppSpacing.medium) {
+                    Button {
+                        isMCPConfigurationExpanded.toggle()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: AppSpacing.small) {
+                                Text("Agent Installation Configuration")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(.primary)
+
+                                Image(systemName: isMCPConfigurationExpanded ? "chevron.up" : "chevron.down")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Text("Copy this configuration into the prompt for the Agent where you want to install it.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .contentShape(.rect)
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Agent Installation Configuration")
+                    .accessibilityValue(isMCPConfigurationExpanded ? "Expanded" : "Collapsed")
 
                     Spacer()
 
@@ -357,6 +387,46 @@ struct SettingsView: View {
                     .appProminentButton()
                     .fixedSize()
                     .accessibilityLabel("Copy Configuration")
+                }
+
+                if isMCPConfigurationExpanded {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(verbatim: QuickNotesMCPStdioConfiguration.configuration)
+                            .font(.system(.caption, design: .monospaced))
+                            .textSelection(.enabled)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                SettingsDashedDivider()
+
+                VStack(alignment: .leading, spacing: AppSpacing.small) {
+                    SettingsControlRow(
+                        title: "Quick Notes Agent Skill",
+                        description: "Install the bundled skill for your Agents, or save a copy as a Markdown document."
+                    ) {
+                        HStack(spacing: AppSpacing.small) {
+                            Button("Save") {
+                                saveQuickNotesAgentSkill()
+                            }
+                            .appSecondaryButton()
+                            .fixedSize()
+                            .accessibilityLabel("Save")
+
+                            Button("Install for Agents") {
+                                installQuickNotesAgentSkill()
+                            }
+                            .appProminentButton()
+                            .fixedSize()
+                            .accessibilityLabel("Install for Agents")
+                        }
+                    }
+
+                    if let agentSkillActionMessage {
+                        Text(verbatim: agentSkillActionMessage)
+                            .font(.caption)
+                            .foregroundStyle(agentSkillActionSucceeded ? .green : .red)
+                    }
                 }
             }
         }
@@ -508,6 +578,60 @@ struct SettingsView: View {
             forType: .string
         )
         mcpConfigurationCopied = true
+    }
+
+    private func installQuickNotesAgentSkill() {
+        do {
+            _ = try QuickNotesAgentSkillInstaller.installFromMainBundle()
+            agentSkillActionSucceeded = true
+            agentSkillActionMessage = localized(
+                "Installed Quick Notes skill. Restart your Agent app if it is already open."
+            )
+        } catch {
+            agentSkillActionSucceeded = false
+            agentSkillActionMessage = AppLocalization.format(
+                "Could not install Quick Notes skill: %@",
+                language: appLanguage,
+                arguments: error.localizedDescription
+            )
+        }
+    }
+
+    private func saveQuickNotesAgentSkill() {
+        guard let parentWindow = NSApp.keyWindow else {
+            agentSkillActionSucceeded = false
+            agentSkillActionMessage = localized("Could not open the save dialog.")
+            return
+        }
+
+        let panel = NSSavePanel()
+        panel.title = localized("Save Quick Notes Agent Skill")
+        panel.prompt = localized("Save")
+        panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText]
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = "quick-notes-skill.md"
+
+        panel.beginSheetModal(for: parentWindow) { response in
+            guard response == .OK, let destination = panel.url else { return }
+
+            do {
+                let markdown = try QuickNotesAgentSkillInstaller.bundledSkillMarkdown()
+                try markdown.write(to: destination, atomically: true, encoding: .utf8)
+                agentSkillActionSucceeded = true
+                agentSkillActionMessage = AppLocalization.format(
+                    "Saved Quick Notes skill to %@.",
+                    language: appLanguage,
+                    arguments: destination.lastPathComponent
+                )
+            } catch {
+                agentSkillActionSucceeded = false
+                agentSkillActionMessage = AppLocalization.format(
+                    "Could not save Quick Notes skill: %@",
+                    language: appLanguage,
+                    arguments: error.localizedDescription
+                )
+            }
+        }
     }
 
     private var exportFileName: String {
