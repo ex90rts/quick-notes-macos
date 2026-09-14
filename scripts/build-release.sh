@@ -41,10 +41,16 @@ binary_dir=$(xcrun swift build -c release --arch arm64 --scratch-path "$scratch_
 binary_path="$binary_dir/QuickNotes"
 highlight_bundle="$binary_dir/$highlight_bundle_name"
 highlight_script="$highlight_bundle/Contents/Resources/highlight.min.js"
+highlight_source="$highlight_script"
+if [[ ! -f "$highlight_source" ]]; then
+    highlight_source=$(find "$scratch_dir/checkouts" \
+        -path '*/Sources/HighlightSwift/HighlightJS/highlight.min.js' \
+        -type f -print -quit)
+fi
 
 [[ -x "$binary_path" ]] || { print -u2 "Release executable not found: $binary_path"; exit 3; }
-[[ -f "$highlight_script" ]] || {
-    print -u2 "HighlightSwift resource bundle is incomplete: $highlight_script"
+[[ -f "$highlight_source" ]] || {
+    print -u2 "HighlightSwift resource is unavailable: $highlight_source"
     exit 3
 }
 [[ -d "$resources_dir" ]] || { print -u2 "App resources not found: $resources_dir"; exit 4; }
@@ -61,15 +67,28 @@ icon_source="$resources_dir/AppIcon.png"
 /bin/mkdir -p "$staged_app/Contents/Resources/AgentSkills"
 /usr/bin/ditto "$agent_skill_dir" \
     "$staged_app/Contents/Resources/AgentSkills/quick-notes"
-/usr/bin/ditto "$highlight_bundle" \
-    "$staged_app/Contents/Resources/$highlight_bundle_name"
+staged_highlight_bundle="$staged_app/Contents/Resources/$highlight_bundle_name"
+if [[ -f "$highlight_script" ]]; then
+    /usr/bin/ditto "$highlight_bundle" "$staged_highlight_bundle"
+else
+    /bin/mkdir -p "$staged_highlight_bundle/Contents/Resources"
+    /usr/bin/install -m 644 "$highlight_source" \
+        "$staged_highlight_bundle/Contents/Resources/highlight.min.js"
+    /usr/bin/plutil -create xml1 "$staged_highlight_bundle/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c 'Add :CFBundleIdentifier string highlightswift.HighlightSwift.resources' \
+        "$staged_highlight_bundle/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c 'Add :CFBundleName string HighlightSwift_HighlightSwift' \
+        "$staged_highlight_bundle/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c 'Add :CFBundlePackageType string BNDL' \
+        "$staged_highlight_bundle/Contents/Info.plist"
+fi
 dependency_resource_bundles=("$binary_dir"/*.bundle(N))
 for resource_bundle in "${dependency_resource_bundles[@]}"; do
     [[ "${resource_bundle:t}" == "$highlight_bundle_name" ]] && continue
     /usr/bin/ditto "$resource_bundle" \
         "$staged_app/Contents/Resources/${resource_bundle:t}"
 done
-staged_highlight_script="$staged_app/Contents/Resources/$highlight_bundle_name/Contents/Resources/highlight.min.js"
+staged_highlight_script="$staged_highlight_bundle/Contents/Resources/highlight.min.js"
 [[ -s "$staged_highlight_script" ]] || {
     print -u2 "HighlightSwift resource was not packaged: $staged_highlight_script"
     exit 8
