@@ -39,6 +39,9 @@ xcrun swift test --arch arm64 --scratch-path "$scratch_dir"
 xcrun swift build -c release --arch arm64 --scratch-path "$scratch_dir"
 binary_dir=$(xcrun swift build -c release --arch arm64 --scratch-path "$scratch_dir" --show-bin-path)
 binary_path="$binary_dir/QuickNotes"
+highlight_resource_accessor=$(find "$scratch_dir" \
+    -path '*/HighlightSwift.build/Release/*/DerivedSources/resource_bundle_accessor.swift' \
+    -type f -print -quit)
 highlight_bundle="$binary_dir/$highlight_bundle_name"
 highlight_script="$highlight_bundle/Contents/Resources/highlight.min.js"
 highlight_source="$highlight_script"
@@ -49,6 +52,14 @@ if [[ ! -f "$highlight_source" ]]; then
 fi
 
 [[ -x "$binary_path" ]] || { print -u2 "Release executable not found: $binary_path"; exit 3; }
+[[ -f "$highlight_resource_accessor" ]] || {
+    print -u2 "HighlightSwift generated resource accessor was not found."
+    exit 3
+}
+/usr/bin/grep -Fq 'Bundle.main.resourceURL' "$highlight_resource_accessor" || {
+    print -u2 "The selected Swift toolchain generated an app-incompatible HighlightSwift resource lookup."
+    exit 3
+}
 [[ -f "$highlight_source" ]] || {
     print -u2 "HighlightSwift resource is unavailable: $highlight_source"
     exit 3
@@ -97,7 +108,10 @@ staged_highlight_script="$staged_highlight_bundle/Contents/Resources/highlight.m
     print -u2 "Quick Notes Agent skill was not packaged."
     exit 8
 }
-"$staged_app/Contents/MacOS/QuickNotes" --verify-highlight-resource
+[[ ! -e "$staged_app/$highlight_bundle_name" ]] || {
+    print -u2 "HighlightSwift resource bundle was also packaged at the invalid app-root path."
+    exit 8
+}
 
 iconset_dir="$staging_dir/AppIcon.iconset"
 /bin/mkdir -p "$iconset_dir"
@@ -122,6 +136,14 @@ minimum_system=$(/usr/bin/plutil -extract LSMinimumSystemVersion raw "$staged_ap
 /usr/bin/codesign --force --sign - --timestamp=none "$staged_app"
 /usr/bin/codesign --verify --strict --verbose=2 "$staged_app"
 /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$staged_app" "$staged_archive"
+/usr/bin/unzip -p "$staged_archive" \
+    "$bundle_name/Contents/Resources/$highlight_bundle_name/Contents/Resources/highlight.min.js" \
+    >/dev/null
+if /usr/bin/unzip -Z1 "$staged_archive" | \
+    /usr/bin/grep -Fqx "$bundle_name/$highlight_bundle_name/Contents/Resources/highlight.min.js"; then
+    print -u2 "HighlightSwift resource bundle was archived at the invalid app-root path."
+    exit 8
+fi
 
 dmg_staging_dir="$staging_dir/dmg"
 /bin/mkdir -p "$dmg_staging_dir"

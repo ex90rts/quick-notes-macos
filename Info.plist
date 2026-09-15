@@ -21,9 +21,9 @@
     <key>CFBundleIdentifier</key>
     <string>com.webber.QuickNotes</string>
 	<key>CFBundleVersion</key>
-	<string>131</string>
+	<string>132</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.3.36</string>
+	<string>1.3.37</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>LSMinimumSystemVersion</key>

@@ -14,7 +14,9 @@ concurrency:
 
 jobs:
   release:
-    runs-on: macos-15
+    # Xcode 27 emits Bundle.module accessors that understand the standard
+    # Contents/Resources location used by signed macOS application bundles.
+    runs-on: xcode-27
 
     steps:
       - name: Check out repository
