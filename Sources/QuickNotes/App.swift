@@ -1,14 +1,40 @@
+import Darwin
+import Foundation
+import HighlightSwift
 import SwiftUI
 
 @main
 @MainActor
 struct QuickNotesLauncher {
+    private static let highlightResourceVerificationArgument = "--verify-highlight-resource"
+
     static func main() {
         if CommandLine.arguments.contains(QuickNotesMCPStdioConfiguration.launchArgument) {
             QuickNotesMCPStdioServer.run()
             return
         }
+        if CommandLine.arguments.contains(highlightResourceVerificationArgument) {
+            verifyHighlightResource()
+            return
+        }
         QuickNotesApp.main()
+    }
+
+    private static func verifyHighlightResource() {
+        Task { @MainActor in
+            do {
+                _ = try await Highlight().attributedText(
+                    "let quickNotes = true",
+                    language: "swift"
+                )
+                exit(EXIT_SUCCESS)
+            } catch {
+                let message = "Unable to load HighlightSwift resources: \(error.localizedDescription)\n"
+                FileHandle.standardError.write(Data(message.utf8))
+                exit(EXIT_FAILURE)
+            }
+        }
+        RunLoop.main.run()
     }
 }
 

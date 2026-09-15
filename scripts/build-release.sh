@@ -97,6 +97,7 @@ staged_highlight_script="$staged_highlight_bundle/Contents/Resources/highlight.m
     print -u2 "Quick Notes Agent skill was not packaged."
     exit 8
 }
+"$staged_app/Contents/MacOS/QuickNotes" --verify-highlight-resource
 
 iconset_dir="$staging_dir/AppIcon.iconset"
 /bin/mkdir -p "$iconset_dir"
