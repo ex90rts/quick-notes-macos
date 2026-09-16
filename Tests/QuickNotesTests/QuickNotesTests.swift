@@ -90,6 +90,17 @@ struct QuickNotesTests {
 
         #expect(quickNotes["command"] as? String == "/Applications/Quick Notes.app/Contents/MacOS/QuickNotes")
         #expect(quickNotes["args"] as? [String] == ["--mcp"])
+        #expect(!configuration.contains(#"\/"#))
+
+        let installationPrompt = QuickNotesMCPStdioConfiguration.installationPrompt(
+            executablePath: "/Applications/Quick Notes.app/Contents/MacOS/QuickNotes"
+        )
+        #expect(installationPrompt.contains(
+            "Command:\n/Applications/Quick Notes.app/Contents/MacOS/QuickNotes"
+        ))
+        #expect(installationPrompt.contains("Arguments:\n- --mcp"))
+        #expect(installationPrompt.contains("Preserve all existing MCP servers"))
+        #expect(!installationPrompt.contains(#"\/"#))
     }
 
     @Test("Bundled Agent skills install into the user's Agent skill scope")
@@ -155,7 +166,11 @@ struct QuickNotesTests {
     @MainActor
     func mcpServiceOperations() throws {
         let repository = try makeRepository()
-        let service = QuickNotesMCPService(repository: repository)
+        var deletionAllowed = false
+        let service = QuickNotesMCPService(
+            repository: repository,
+            deletionPermission: { deletionAllowed }
+        )
 
         let toolNames = service.toolDefinitions.compactMap { $0["name"] as? String }
         #expect(toolNames == [
@@ -163,7 +178,9 @@ struct QuickNotesTests {
             "quick_notes_list_tags",
             "quick_notes_create_note",
             "quick_notes_update_note",
-            "quick_notes_add_tag"
+            "quick_notes_add_tag",
+            "quick_notes_delete_note",
+            "quick_notes_delete_tag"
         ])
         let updateDefinition = try #require(service.toolDefinitions.first { definition in
             definition["name"] as? String == "quick_notes_update_note"
@@ -172,6 +189,11 @@ struct QuickNotesTests {
         #expect(updateSchema["required"] as? [String] == ["id", "content"])
         let updateProperties = try #require(updateSchema["properties"] as? [String: Any])
         #expect(updateProperties["is_pinned"] == nil)
+        let deleteDefinition = try #require(service.toolDefinitions.first { definition in
+            definition["name"] as? String == "quick_notes_delete_note"
+        })
+        let deleteAnnotations = try #require(deleteDefinition["annotations"] as? [String: Any])
+        #expect(deleteAnnotations["destructiveHint"] as? Bool == true)
 
         let addedTag = service.call("quick_notes_add_tag", arguments: ["name": "Projects"])
         #expect(addedTag["isError"] as? Bool == false)
@@ -223,27 +245,15 @@ struct QuickNotesTests {
         #expect(blockedDeletion["isError"] as? Bool == true)
         #expect((blockedDeletion["content"] as? [[String: Any]])?.first?["text"] as? String == "MCP deletion is disabled in Quick Notes settings. Enable Allow MCP Delete before deleting notes or tags.")
 
-        let deletionService = QuickNotesMCPService(
-            repository: repository,
-            deletionPermission: { true }
-        )
-        #expect(deletionService.toolDefinitions.compactMap { $0["name"] as? String } == [
-            "quick_notes_list_notes",
-            "quick_notes_list_tags",
-            "quick_notes_create_note",
-            "quick_notes_update_note",
-            "quick_notes_add_tag",
-            "quick_notes_delete_note",
-            "quick_notes_delete_tag"
-        ])
+        deletionAllowed = true
 
-        let associatedTag = deletionService.call("quick_notes_delete_tag", arguments: ["tag": "Projects"])
+        let associatedTag = service.call("quick_notes_delete_tag", arguments: ["tag": "Projects"])
         #expect(associatedTag["isError"] as? Bool == true)
         #expect((associatedTag["content"] as? [[String: Any]])?.first?["text"] as? String == "Tag 'Projects' is still assigned to one or more notes and cannot be deleted.")
 
-        let deletedNote = deletionService.call("quick_notes_delete_note", arguments: ["id": noteID])
+        let deletedNote = service.call("quick_notes_delete_note", arguments: ["id": noteID])
         #expect(deletedNote["isError"] as? Bool == false)
-        let deletedTag = deletionService.call("quick_notes_delete_tag", arguments: ["tag": "Projects"])
+        let deletedTag = service.call("quick_notes_delete_tag", arguments: ["tag": "Projects"])
         #expect(deletedTag["isError"] as? Bool == false)
         #expect(try repository.fetchNotes().isEmpty)
         #expect(try repository.fetchTags().isEmpty)
@@ -372,7 +382,27 @@ struct QuickNotesTests {
         #expect(simplifiedChinese["Automatic"] == "跟随系统")
         #expect(traditionalChinese["Automatic"] == "跟隨系統")
         #expect(english["Automatic"] == "Follow System")
-        #expect(simplifiedChinese["Adjust the panel size."] == "调整面板大小。")
+        #expect(simplifiedChinese["Follow the system by default, or choose a language."] == "默认跟随系统，也可以自行选择。")
+        #expect(traditionalChinese["Follow the system by default, or choose a language."] == "預設跟隨系統，也可以自行選擇。")
+        #expect(simplifiedChinese["Use a Markdown document to back up or migrate note data."] == "使用 Markdown 文档备份或迁移笔记数据。")
+        #expect(traditionalChinese["Use a Markdown document to back up or migrate note data."] == "使用 Markdown 文件備份或遷移筆記資料。")
+        #expect(simplifiedChinese["Copy ID for Agent Use"] == "复制 ID 供 Agent 使用")
+        #expect(traditionalChinese["Copy ID for Agent Use"] == "複製 ID 供 Agent 使用")
+        #expect(simplifiedChinese["Customize selected appearance settings."] == "自定义部分显示外观。")
+        #expect(traditionalChinese["Customize selected appearance settings."] == "自訂部分顯示外觀。")
+
+        let removedHelpKeys = [
+            "Choose the menu bar icon style.",
+            "Adjust the panel size.",
+            "Code highlighting color scheme for code in note content.",
+            "Save titles, creation dates, tags, and Markdown content.",
+            "Merge another Quick Notes Markdown export into this library."
+        ]
+        for key in removedHelpKeys {
+            #expect(english[key] == nil)
+            #expect(simplifiedChinese[key] == nil)
+            #expect(traditionalChinese[key] == nil)
+        }
     }
 
     @Test("Menu bar icon styles use their supplied image resources")
@@ -829,6 +859,7 @@ struct QuickNotesTests {
         #expect(NoteCardLayout.actionHoverPadding == 4)
         #expect(NoteCardLayout.actionHorizontalMargin == 2)
         #expect(NoteCardLayout.actionHoverCornerRadius == 5)
+        #expect(NoteCardLayout.tooltipDelayMilliseconds == 500)
         #expect(NoteRenderingMenuLayout.fontSize == 12)
         #expect(NoteRenderingMenuLayout.itemWidth == 156)
         #expect(NoteRenderingMenuLayout.itemHeight == 24)

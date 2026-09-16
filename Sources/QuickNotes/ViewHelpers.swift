@@ -126,6 +126,7 @@ enum NoteCardLayout {
     static let actionHoverPadding: CGFloat = 4
     static let actionHorizontalMargin: CGFloat = 2
     static let actionHoverCornerRadius: CGFloat = 5
+    static let tooltipDelayMilliseconds = 500
 }
 
 enum NoteRenderingMenuLayout {

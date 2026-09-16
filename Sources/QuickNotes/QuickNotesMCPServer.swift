@@ -14,12 +14,22 @@ enum QuickNotesLibraryChange {
 enum QuickNotesMCPStdioConfiguration {
     static let launchArgument = "--mcp"
 
+    static var command: String {
+        Bundle.main.executablePath
+            ?? CommandLine.arguments.first
+            ?? "QuickNotes"
+    }
+
+    static var arguments: [String] {
+        [launchArgument]
+    }
+
     static var configuration: String {
-        configuration(
-            executablePath: Bundle.main.executablePath
-                ?? CommandLine.arguments.first
-                ?? "QuickNotes"
-        )
+        configuration(executablePath: command)
+    }
+
+    static var installationPrompt: String {
+        installationPrompt(executablePath: command)
     }
 
     static func configuration(executablePath: String) -> String {
@@ -27,17 +37,33 @@ enum QuickNotesMCPStdioConfiguration {
             "mcpServers": [
                 "quick-notes": [
                     "command": executablePath,
-                    "args": [launchArgument]
+                    "args": arguments
                 ]
             ]
         ]
         guard let data = try? JSONSerialization.data(
             withJSONObject: object,
-            options: [.prettyPrinted, .sortedKeys]
+            options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         ) else {
             return "{}"
         }
         return String(decoding: data, as: UTF8.self)
+    }
+
+    static func installationPrompt(executablePath: String) -> String {
+        let argumentList = arguments.map { "- \($0)" }.joined(separator: "\n")
+        return """
+        Add the following local stdio MCP server to this Agent's MCP configuration. Make the change yourself if you can access the configuration; otherwise tell me exactly where to add it for this Agent. Preserve all existing MCP servers. Treat Command and Arguments as separate fields and use the values literally without adding shell escaping.
+
+        Server name: quick-notes
+        Transport: stdio
+        Command:
+        \(executablePath)
+        Arguments:
+        \(argumentList)
+
+        After saving the configuration, restart the Agent if required and confirm that the quick-notes MCP server is available.
+        """
     }
 }
 
@@ -178,7 +204,7 @@ final class QuickNotesMCPService {
     }
 
     var toolDefinitions: [[String: Any]] {
-        var definitions: [[String: Any]] = [
+        [
             tool(
                 name: "quick_notes_list_notes",
                 title: "List Quick Notes",
@@ -261,45 +287,40 @@ final class QuickNotesMCPService {
                 ],
                 readOnly: false,
                 idempotent: false
+            ),
+            tool(
+                name: "quick_notes_delete_note",
+                title: "Delete Quick Note",
+                description: "Permanently delete one note when MCP deletion is enabled in Quick Notes settings. Only call after the user explicitly identifies the note as #<UUID>; pass that UUID without the # as id.",
+                inputSchema: [
+                    "type": "object",
+                    "properties": [
+                        "id": stringSchema(description: "The UUID from the user-specified #<UUID> note identifier.", minimum: 36, maximum: 36)
+                    ],
+                    "required": ["id"],
+                    "additionalProperties": false
+                ],
+                readOnly: false,
+                idempotent: true,
+                destructive: true
+            ),
+            tool(
+                name: "quick_notes_delete_tag",
+                title: "Delete Unused Quick Notes Tag",
+                description: "Permanently delete an unused tag when MCP deletion is enabled in Quick Notes settings. The tag value must exactly match an existing tag and cannot be attached to any note.",
+                inputSchema: [
+                    "type": "object",
+                    "properties": [
+                        "tag": stringSchema(description: "The exact existing tag value to delete; matching is case-sensitive and is not normalized.", minimum: 1, maximum: TagNamePolicy.maximumCharacterCount)
+                    ],
+                    "required": ["tag"],
+                    "additionalProperties": false
+                ],
+                readOnly: false,
+                idempotent: true,
+                destructive: true
             )
         ]
-
-        if deletionPermission() {
-            definitions.append(contentsOf: [
-                tool(
-                    name: "quick_notes_delete_note",
-                    title: "Delete Quick Note",
-                    description: "Permanently delete one note. Only call after the user explicitly identifies the note as #<UUID>; pass that UUID without the # as id.",
-                    inputSchema: [
-                        "type": "object",
-                        "properties": [
-                            "id": stringSchema(description: "The UUID from the user-specified #<UUID> note identifier.", minimum: 36, maximum: 36)
-                        ],
-                        "required": ["id"],
-                        "additionalProperties": false
-                    ],
-                    readOnly: false,
-                    idempotent: true
-                ),
-                tool(
-                    name: "quick_notes_delete_tag",
-                    title: "Delete Unused Quick Notes Tag",
-                    description: "Permanently delete an unused tag. The tag value must exactly match an existing tag and cannot be attached to any note.",
-                    inputSchema: [
-                        "type": "object",
-                        "properties": [
-                            "tag": stringSchema(description: "The exact existing tag value to delete; matching is case-sensitive and is not normalized.", minimum: 1, maximum: TagNamePolicy.maximumCharacterCount)
-                        ],
-                        "required": ["tag"],
-                        "additionalProperties": false
-                    ],
-                    readOnly: false,
-                    idempotent: true
-                )
-            ])
-        }
-
-        return definitions
     }
 
     func call(_ name: String, arguments: [String: Any]) -> [String: Any] {
@@ -530,7 +551,8 @@ final class QuickNotesMCPService {
         description: String,
         inputSchema: [String: Any],
         readOnly: Bool,
-        idempotent: Bool
+        idempotent: Bool,
+        destructive: Bool = false
     ) -> [String: Any] {
         [
             "name": name,
@@ -539,7 +561,7 @@ final class QuickNotesMCPService {
             "inputSchema": inputSchema,
             "annotations": [
                 "readOnlyHint": readOnly,
-                "destructiveHint": false,
+                "destructiveHint": destructive,
                 "idempotentHint": idempotent,
                 "openWorldHint": false
             ]

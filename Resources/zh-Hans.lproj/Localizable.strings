@@ -27,6 +27,7 @@
 "Pin" = "置顶";
 "Copied" = "已复制";
 "Copy Note ID" = "复制笔记 ID";
+"Copy ID for Agent Use" = "复制 ID 供 Agent 使用";
 "Copy" = "复制";
 "Edit" = "编辑";
 "Delete" = "删除";
@@ -77,7 +78,7 @@
 "Reorder Tags" = "调整标签顺序";
 "No tags available to reorder." = "暂无可排序的标签。";
 
-"Create labels for filtering and grouping related notes." = "创建标签，用于筛选和归类相关笔记。";
+"Filter and group related notes." = "用于筛选和归类相关笔记。";
 "Resort order" = "调整顺序";
 "New tag name" = "新标签名称";
 "Clear tag name" = "清除标签名称";
@@ -100,36 +101,31 @@
 "Enter 1 or more" = "请输入不小于 1 的数值";
 
 "Appearance" = "外观";
-"Customize the menu bar and panel." = "自定义菜单栏图标和面板。";
+"Customize selected appearance settings." = "自定义部分显示外观。";
 "Menubar Icon" = "菜单栏图标";
-"Choose the menu bar icon style." = "选择菜单栏图标样式。";
 "Icon style" = "图标样式";
 "Black & White" = "黑白";
 "Color" = "彩色";
 "Panel Size" = "面板大小";
-"Adjust the panel size." = "调整面板大小。";
 "Panel size" = "面板大小";
 "Small" = "小";
 "Medium" = "中";
 "Large" = "大";
 "Code Highlight Theme" = "代码高亮主题";
-"Code highlighting color scheme for code in note content." = "笔记内容中的代码高亮配色方案。";
 "Code highlight theme" = "代码高亮主题";
 "Preview code highlight theme" = "预览代码高亮主题";
 
 "Display Language" = "显示语言";
-"Follow the system, or choose manually." = "跟随系统，或手动选择。";
+"Follow the system by default, or choose a language." = "默认跟随系统，也可以自行选择。";
 "Language" = "语言";
 "Display language" = "显示语言";
 
 "Export / Import" = "导出 / 导入";
-"Move notes between Quick Notes installations using a Markdown document." = "使用 Markdown 文档在不同 Quick Notes 应用之间迁移笔记。";
+"Use a Markdown document to back up or migrate note data." = "使用 Markdown 文档备份或迁移笔记数据。";
 "Export Notes" = "导出笔记";
-"Save titles, creation dates, tags, and Markdown content." = "保存标题、创建时间、标签和 Markdown 内容。";
 "Export…" = "导出…";
 "No notes to export." = "没有可导出的笔记。";
 "Import Notes" = "导入笔记";
-"Merge another Quick Notes Markdown export into this library." = "将另一份 Quick Notes Markdown 导出文件合并到当前资料库。";
 "Import…" = "导入…";
 "Could not open the export dialog." = "无法打开导出对话框。";
 "Export Quick Notes" = "导出 Quick Notes";
@@ -151,16 +147,17 @@
 "OK" = "好";
 
 "MCP Server" = "MCP 服务";
-"Let a local Agent read and manage this library. The server uses a local subprocess, not a network address." = "允许本地 Agent 读取和管理此资料库。服务以本地子进程运行，不使用网络地址。";
+"Connect a local Agent to read and manage note data." = "接入本地 Agent 来读取和管理笔记数据。";
 "Enable MCP Server" = "启用 MCP 服务";
 "When disabled, Agents cannot connect or change your notes." = "关闭后，Agent 无法连接或更改你的笔记。";
 "Allow MCP Delete" = "允许 MCP 删除";
-"When enabled, Agents can delete a note by its ID or an unused tag by its exact name." = "开启后，Agent 可按笔记 ID 删除笔记，或按完全一致的名称删除未使用的标签。";
+"Choose whether Agents may delete specified notes or tags." = "是否允许 Agent 删除指定笔记或标签。";
 "Expanded" = "已展开";
 "Collapsed" = "已折叠";
 "Quick Notes Agent Skill" = "Quick Notes Agent Skill";
-"Install the bundled skill for your Agents, or save a copy as a Markdown document." = "将内置技能安装到你的 Agents，或另存为 Markdown 文档。";
+"Install the Skill to help Agents manage note data more easily." = "安装 Skill 让 Agent 更方便的管理笔记数据。";
 "Install for Agents" = "安装到 Agents";
+"Save As" = "另存为";
 "Installed Quick Notes skill. Restart your Agent app if it is already open." = "Quick Notes 技能已安装；若 Agent 应用已打开，请重新启动。";
 "Could not install Quick Notes skill: %@" = "无法安装 Quick Notes 技能：%@";
 "Save Quick Notes Agent Skill" = "保存 Quick Notes Agent Skill";
@@ -168,8 +165,12 @@
 "Could not save Quick Notes skill: %@" = "无法保存 Quick Notes 技能：%@";
 "Could not open the save dialog." = "无法打开保存对话框。";
 "Agent Installation Configuration" = "Agent 安装配置";
-"Copy this configuration into the prompt for the Agent where you want to install it." = "将此配置复制到你希望安装它的 Agent 提示词中。";
-"Copy Configuration" = "复制配置";
+"Copy the installation prompt to your Agent, or expand to copy the parameters for manual setup." = "复制安装提示词给 Agent 安装，或展开复制参数手动配置。";
+"Copy Install Prompt" = "复制安装提示词";
+"Command" = "Command";
+"Arguments" = "Args";
+"Copy Command" = "复制 Command";
+"Copy Arguments" = "复制 Args";
 "Let a local Agent read and manage this library through a loopback HTTP address." = "允许本地 Agent 通过回环 HTTP 地址读取和管理此资料库。";
 "When enabled, this Mac listens only at the address below." = "启用后，此 Mac 只会监听下方地址。";
 "Agent MCP Address" = "Agent MCP 地址";

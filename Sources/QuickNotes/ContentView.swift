@@ -240,20 +240,32 @@ struct NotesListView: View {
             guard vm.isPanelPresented else { return }
             await refreshClipboardQuickAddAvailability()
         }
-        .overlayPreferenceValue(PinTooltipPreferenceKey.self) { tooltip in
+        .overlayPreferenceValue(NoteTooltipPreferenceKey.self) { tooltip in
             GeometryReader { geometry in
                 if let tooltip {
                     let buttonFrame = geometry[tooltip.anchor]
-                    AppTooltip(text: tooltip.text)
-                        .position(
-                            x: buttonFrame.midX,
-                            y: buttonFrame.minY - 18
-                        )
-                        .opacity(tooltip.isPresented ? 1 : 0)
-                        .animation(
-                            .easeOut(duration: 0.12),
-                            value: tooltip.isPresented
-                        )
+                    ZStack(alignment: .topLeading) {
+                        AppTooltip(text: tooltip.text)
+                            .alignmentGuide(.leading) { dimensions in
+                                -tooltip.placement.leadingPosition(
+                                    buttonFrame: buttonFrame,
+                                    tooltipWidth: dimensions.width
+                                )
+                            }
+                            .alignmentGuide(.top) { dimensions in
+                                -(buttonFrame.minY - dimensions.height - 6)
+                            }
+                            .opacity(tooltip.isPresented ? 1 : 0)
+                            .animation(
+                                .easeOut(duration: 0.12),
+                                value: tooltip.isPresented
+                            )
+                    }
+                    .frame(
+                        width: geometry.size.width,
+                        height: geometry.size.height,
+                        alignment: .topLeading
+                    )
                 }
             }
             .allowsHitTesting(false)
@@ -741,18 +753,33 @@ private struct NoteDissolveParticle {
     }
 }
 
-private struct PinTooltipPreference {
+private enum NoteTooltipPlacement {
+    case centeredAbove
+    case leadingAbove
+
+    func leadingPosition(buttonFrame: CGRect, tooltipWidth: CGFloat) -> CGFloat {
+        switch self {
+        case .centeredAbove:
+            buttonFrame.midX - tooltipWidth / 2
+        case .leadingAbove:
+            buttonFrame.minX
+        }
+    }
+}
+
+private struct NoteTooltipPreference {
     let anchor: Anchor<CGRect>
     let text: String
     let isPresented: Bool
+    let placement: NoteTooltipPlacement
 }
 
-private struct PinTooltipPreferenceKey: PreferenceKey {
-    static let defaultValue: PinTooltipPreference? = nil
+private struct NoteTooltipPreferenceKey: PreferenceKey {
+    static let defaultValue: NoteTooltipPreference? = nil
 
     static func reduce(
-        value: inout PinTooltipPreference?,
-        nextValue: () -> PinTooltipPreference?
+        value: inout NoteTooltipPreference?,
+        nextValue: () -> NoteTooltipPreference?
     ) {
         if let nextValue = nextValue() {
             value = nextValue
@@ -816,6 +843,7 @@ struct NoteRow: View {
     )
 
     private enum HoveredAction: Equatable {
+        case identifier
         case pin
         case copy
         case edit
@@ -844,6 +872,7 @@ struct NoteRow: View {
     @State private var maxHeight: CGFloat = 0
     @State private var isHovering = false
     @State private var hoveredAction: HoveredAction?
+    @State private var isIdentifierTooltipPresented = false
     @State private var isPinTooltipPresented = false
     @State private var attentionIntensity: Double = 0
     @State private var deletionProgress: Double = 0
@@ -859,15 +888,52 @@ struct NoteRow: View {
                         didJustCopyIdentifier = false
                     }
                 } label: {
-                    Text(didJustCopyIdentifier ? "Copied" : "#ID")
+                    Text("#ID")
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(didJustCopyIdentifier ? AppTheme.brandBlue : Color.secondary)
+                        .foregroundStyle(AppTheme.brandBlue)
+                        .padding(.horizontal, 5)
+                        .frame(height: 22)
+                        .background(
+                            hoveredAction == .identifier
+                                ? AppTheme.selectedFill
+                                : Color.clear
+                        )
+                        .clipShape(.rect(cornerRadius: NoteCardLayout.actionHoverCornerRadius))
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(
-                    Text(LocalizedStringKey(didJustCopyIdentifier ? "Copied" : "Copy Note ID"))
+                    Text(LocalizedStringKey(didJustCopyIdentifier ? "Copied" : "Copy ID for Agent Use"))
                 )
-                .help(Text(LocalizedStringKey(didJustCopyIdentifier ? "Copied" : "Copy Note ID")))
+                .onHover { hovering in
+                    hoveredAction = hovering ? .identifier : nil
+                }
+                .task(id: hoveredAction == .identifier) {
+                    isIdentifierTooltipPresented = false
+                    guard hoveredAction == .identifier else { return }
+
+                    try? await Task.sleep(
+                        for: .milliseconds(NoteCardLayout.tooltipDelayMilliseconds)
+                    )
+                    guard !Task.isCancelled, hoveredAction == .identifier else { return }
+
+                    isIdentifierTooltipPresented = true
+                }
+                .anchorPreference(
+                    key: NoteTooltipPreferenceKey.self,
+                    value: .bounds
+                ) { anchor in
+                    guard hoveredAction == .identifier else { return nil }
+                    return NoteTooltipPreference(
+                        anchor: anchor,
+                        text: AppLocalization.string(
+                            didJustCopyIdentifier ? "Copied" : "Copy ID for Agent Use",
+                            language: appLanguage
+                        ),
+                        isPresented: isIdentifierTooltipPresented || didJustCopyIdentifier,
+                        placement: .leadingAbove
+                    )
+                }
 
                 Text(note.timestamp, format: AppFormatters.noteTimestamp)
                     .font(.system(size: 11))
@@ -895,20 +961,23 @@ struct NoteRow: View {
                         isPinTooltipPresented = false
                         guard hoveredAction == .pin else { return }
 
-                        try? await Task.sleep(for: .milliseconds(500))
+                        try? await Task.sleep(
+                            for: .milliseconds(NoteCardLayout.tooltipDelayMilliseconds)
+                        )
                         guard !Task.isCancelled, hoveredAction == .pin else { return }
 
                         isPinTooltipPresented = true
                     }
                     .anchorPreference(
-                        key: PinTooltipPreferenceKey.self,
+                        key: NoteTooltipPreferenceKey.self,
                         value: .bounds
                     ) { anchor in
                         guard hoveredAction == .pin else { return nil }
-                        return PinTooltipPreference(
+                        return NoteTooltipPreference(
                             anchor: anchor,
                             text: pinHelpText,
-                            isPresented: isPinTooltipPresented
+                            isPresented: isPinTooltipPresented,
+                            placement: .centeredAbove
                         )
                     }
 

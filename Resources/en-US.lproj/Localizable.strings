@@ -27,6 +27,7 @@
 "Pin" = "Pin";
 "Copied" = "Copied";
 "Copy Note ID" = "Copy Note ID";
+"Copy ID for Agent Use" = "Copy ID for Agent Use";
 "Copy" = "Copy";
 "Edit" = "Edit";
 "Delete" = "Delete";
@@ -77,7 +78,7 @@
 "Reorder Tags" = "Reorder Tags";
 "No tags available to reorder." = "No tags available to reorder.";
 
-"Create labels for filtering and grouping related notes." = "Create labels for filtering and grouping related notes.";
+"Filter and group related notes." = "Filter and group related notes.";
 "Resort order" = "Resort order";
 "New tag name" = "New tag name";
 "Clear tag name" = "Clear tag name";
@@ -100,36 +101,31 @@
 "Enter 1 or more" = "Enter 1 or more";
 
 "Appearance" = "Appearance";
-"Customize the menu bar and panel." = "Customize the menu bar and panel.";
+"Customize selected appearance settings." = "Customize selected appearance settings.";
 "Menubar Icon" = "Menubar Icon";
-"Choose the menu bar icon style." = "Choose the menu bar icon style.";
 "Icon style" = "Icon style";
 "Black & White" = "Black & White";
 "Color" = "Color";
 "Panel Size" = "Panel Size";
-"Adjust the panel size." = "Adjust the panel size.";
 "Panel size" = "Panel size";
 "Small" = "Small";
 "Medium" = "Medium";
 "Large" = "Large";
 "Code Highlight Theme" = "Code Highlight Theme";
-"Code highlighting color scheme for code in note content." = "Code highlighting color scheme for code in note content.";
 "Code highlight theme" = "Code highlight theme";
 "Preview code highlight theme" = "Preview code highlight theme";
 
 "Display Language" = "Display Language";
-"Follow the system, or choose manually." = "Follow the system, or choose manually.";
+"Follow the system by default, or choose a language." = "Follow the system by default, or choose a language.";
 "Language" = "Language";
 "Display language" = "Display language";
 
 "Export / Import" = "Export / Import";
-"Move notes between Quick Notes installations using a Markdown document." = "Move notes between Quick Notes installations using a Markdown document.";
+"Use a Markdown document to back up or migrate note data." = "Use a Markdown document to back up or migrate note data.";
 "Export Notes" = "Export Notes";
-"Save titles, creation dates, tags, and Markdown content." = "Save titles, creation dates, tags, and Markdown content.";
 "Export…" = "Export…";
 "No notes to export." = "No notes to export.";
 "Import Notes" = "Import Notes";
-"Merge another Quick Notes Markdown export into this library." = "Merge another Quick Notes Markdown export into this library.";
 "Import…" = "Import…";
 "Could not open the export dialog." = "Could not open the export dialog.";
 "Export Quick Notes" = "Export Quick Notes";
@@ -151,16 +147,17 @@
 "OK" = "OK";
 
 "MCP Server" = "MCP Server";
-"Let a local Agent read and manage this library. The server uses a local subprocess, not a network address." = "Let a local Agent read and manage this library. The server uses a local subprocess, not a network address.";
+"Connect a local Agent to read and manage note data." = "Connect a local Agent to read and manage note data.";
 "Enable MCP Server" = "Enable MCP Server";
 "When disabled, Agents cannot connect or change your notes." = "When disabled, Agents cannot connect or change your notes.";
 "Allow MCP Delete" = "Allow MCP Delete";
-"When enabled, Agents can delete a note by its ID or an unused tag by its exact name." = "When enabled, Agents can delete a note by its ID or an unused tag by its exact name.";
+"Choose whether Agents may delete specified notes or tags." = "Choose whether Agents may delete specified notes or tags.";
 "Expanded" = "Expanded";
 "Collapsed" = "Collapsed";
 "Quick Notes Agent Skill" = "Quick Notes Agent Skill";
-"Install the bundled skill for your Agents, or save a copy as a Markdown document." = "Install the bundled skill for your Agents, or save a copy as a Markdown document.";
+"Install the Skill to help Agents manage note data more easily." = "Install the Skill to help Agents manage note data more easily.";
 "Install for Agents" = "Install for Agents";
+"Save As" = "Save As";
 "Installed Quick Notes skill. Restart your Agent app if it is already open." = "Installed Quick Notes skill. Restart your Agent app if it is already open.";
 "Could not install Quick Notes skill: %@" = "Could not install Quick Notes skill: %@";
 "Save Quick Notes Agent Skill" = "Save Quick Notes Agent Skill";
@@ -168,8 +165,12 @@
 "Could not save Quick Notes skill: %@" = "Could not save Quick Notes skill: %@";
 "Could not open the save dialog." = "Could not open the save dialog.";
 "Agent Installation Configuration" = "Agent Installation Configuration";
-"Copy this configuration into the prompt for the Agent where you want to install it." = "Copy this configuration into the prompt for the Agent where you want to install it.";
-"Copy Configuration" = "Copy Configuration";
+"Copy the installation prompt to your Agent, or expand to copy the parameters for manual setup." = "Copy the installation prompt to your Agent, or expand to copy the parameters for manual setup.";
+"Copy Install Prompt" = "Copy Install Prompt";
+"Command" = "Command";
+"Arguments" = "Arguments";
+"Copy Command" = "Copy Command";
+"Copy Arguments" = "Copy Arguments";
 "Let a local Agent read and manage this library through a loopback HTTP address." = "Let a local Agent read and manage this library through a loopback HTTP address.";
 "When enabled, this Mac listens only at the address below." = "When enabled, this Mac listens only at the address below.";
 "Agent MCP Address" = "Agent MCP Address";

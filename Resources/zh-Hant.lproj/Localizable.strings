@@ -27,6 +27,7 @@
 "Pin" = "釘選";
 "Copied" = "已拷貝";
 "Copy Note ID" = "拷貝筆記 ID";
+"Copy ID for Agent Use" = "複製 ID 供 Agent 使用";
 "Copy" = "拷貝";
 "Edit" = "編輯";
 "Delete" = "刪除";
@@ -77,7 +78,7 @@
 "Reorder Tags" = "重新排列標籤";
 "No tags available to reorder." = "沒有可重新排列的標籤。";
 
-"Create labels for filtering and grouping related notes." = "建立標籤，用於篩選和歸類相關筆記。";
+"Filter and group related notes." = "用於篩選和歸類相關筆記。";
 "Resort order" = "調整順序";
 "New tag name" = "新標籤名稱";
 "Clear tag name" = "清除標籤名稱";
@@ -100,36 +101,31 @@
 "Enter 1 or more" = "請輸入不小於 1 的數值";
 
 "Appearance" = "外觀";
-"Customize the menu bar and panel." = "自訂選單列圖示和面板。";
+"Customize selected appearance settings." = "自訂部分顯示外觀。";
 "Menubar Icon" = "選單列圖示";
-"Choose the menu bar icon style." = "選擇選單列圖示樣式。";
 "Icon style" = "圖示樣式";
 "Black & White" = "黑白";
 "Color" = "彩色";
 "Panel Size" = "面板大小";
-"Adjust the panel size." = "調整面板大小。";
 "Panel size" = "面板大小";
 "Small" = "小";
 "Medium" = "中";
 "Large" = "大";
 "Code Highlight Theme" = "程式碼高亮主題";
-"Code highlighting color scheme for code in note content." = "筆記內容中的程式碼高亮配色方案。";
 "Code highlight theme" = "程式碼高亮主題";
 "Preview code highlight theme" = "預覽程式碼高亮主題";
 
 "Display Language" = "顯示語言";
-"Follow the system, or choose manually." = "跟隨系統，或手動選擇。";
+"Follow the system by default, or choose a language." = "預設跟隨系統，也可以自行選擇。";
 "Language" = "語言";
 "Display language" = "顯示語言";
 
 "Export / Import" = "匯出 / 匯入";
-"Move notes between Quick Notes installations using a Markdown document." = "使用 Markdown 文件在不同 Quick Notes App 之間搬移筆記。";
+"Use a Markdown document to back up or migrate note data." = "使用 Markdown 文件備份或遷移筆記資料。";
 "Export Notes" = "匯出筆記";
-"Save titles, creation dates, tags, and Markdown content." = "儲存標題、建立時間、標籤和 Markdown 內容。";
 "Export…" = "匯出…";
 "No notes to export." = "沒有可匯出的筆記。";
 "Import Notes" = "匯入筆記";
-"Merge another Quick Notes Markdown export into this library." = "將另一份 Quick Notes Markdown 匯出檔合併到目前資料庫。";
 "Import…" = "匯入…";
 "Could not open the export dialog." = "無法開啟匯出對話框。";
 "Export Quick Notes" = "匯出 Quick Notes";
@@ -151,16 +147,17 @@
 "OK" = "好";
 
 "MCP Server" = "MCP 服務";
-"Let a local Agent read and manage this library. The server uses a local subprocess, not a network address." = "允許本機 Agent 讀取及管理此資料庫。服務以本機子程序執行，不使用網路位址。";
+"Connect a local Agent to read and manage note data." = "接入本機 Agent 來讀取和管理筆記資料。";
 "Enable MCP Server" = "啟用 MCP 服務";
 "When disabled, Agents cannot connect or change your notes." = "關閉後，Agent 無法連線或更改你的筆記。";
 "Allow MCP Delete" = "允許 MCP 刪除";
-"When enabled, Agents can delete a note by its ID or an unused tag by its exact name." = "開啟後，Agent 可依筆記 ID 刪除筆記，或依完全一致的名稱刪除未使用的標籤。";
+"Choose whether Agents may delete specified notes or tags." = "是否允許 Agent 刪除指定筆記或標籤。";
 "Expanded" = "已展開";
 "Collapsed" = "已收合";
 "Quick Notes Agent Skill" = "Quick Notes Agent Skill";
-"Install the bundled skill for your Agents, or save a copy as a Markdown document." = "將內建技能安裝到你的 Agents，或另存為 Markdown 文件。";
+"Install the Skill to help Agents manage note data more easily." = "安裝 Skill 讓 Agent 更方便地管理筆記資料。";
 "Install for Agents" = "安裝到 Agents";
+"Save As" = "另存為";
 "Installed Quick Notes skill. Restart your Agent app if it is already open." = "Quick Notes 技能已安裝；若 Agent App 已開啟，請重新啟動。";
 "Could not install Quick Notes skill: %@" = "無法安裝 Quick Notes 技能：%@";
 "Save Quick Notes Agent Skill" = "儲存 Quick Notes Agent Skill";
@@ -168,8 +165,12 @@
 "Could not save Quick Notes skill: %@" = "無法儲存 Quick Notes 技能：%@";
 "Could not open the save dialog." = "無法開啟儲存對話框。";
 "Agent Installation Configuration" = "Agent 安裝設定";
-"Copy this configuration into the prompt for the Agent where you want to install it." = "將此設定複製到你想安裝它的 Agent 提示詞中。";
-"Copy Configuration" = "拷貝設定";
+"Copy the installation prompt to your Agent, or expand to copy the parameters for manual setup." = "複製安裝提示詞給 Agent 安裝，或展開複製參數手動設定。";
+"Copy Install Prompt" = "拷貝安裝提示詞";
+"Command" = "Command";
+"Arguments" = "Args";
+"Copy Command" = "拷貝 Command";
+"Copy Arguments" = "拷貝 Args";
 "Let a local Agent read and manage this library through a loopback HTTP address." = "允許本機 Agent 透過回環 HTTP 位址讀取及管理此資料庫。";
 "When enabled, this Mac listens only at the address below." = "啟用後，此 Mac 只會監聽下方位址。";
 "Agent MCP Address" = "Agent MCP 位址";

@@ -3,6 +3,12 @@ import HighlightSwift
 import SwiftUI
 import UniformTypeIdentifiers
 
+private enum MCPConfigurationCopyTarget: Equatable {
+    case installationPrompt
+    case command
+    case arguments
+}
+
 struct SettingsView: View {
     @EnvironmentObject var vm: NotesViewModel
     @EnvironmentObject var preferences: AppPreferences
@@ -14,7 +20,7 @@ struct SettingsView: View {
     @State private var importAlert: SettingsImportAlert?
     @State private var isCodeHighlightPreviewExpanded = false
     @State private var isMCPConfigurationExpanded = false
-    @State private var mcpConfigurationCopied = false
+    @State private var copiedMCPConfigurationTarget: MCPConfigurationCopyTarget?
     @State private var agentSkillActionMessage: String?
     @State private var agentSkillActionSucceeded = false
     @FocusState private var isTagInputFocused: Bool
@@ -74,7 +80,7 @@ struct SettingsView: View {
         SettingsSection(
             title: "Tags",
             systemImage: "tag",
-            description: "Create labels for filtering and grouping related notes.",
+            description: "Filter and group related notes.",
             headerTrailing: {
                 SettingsHeaderAction(
                     title: "Resort order",
@@ -167,13 +173,10 @@ struct SettingsView: View {
         SettingsSection(
             title: "Appearance",
             systemImage: "paintpalette",
-            description: "Customize the menu bar and panel."
+            description: "Customize selected appearance settings."
         ) {
             VStack(spacing: 0) {
-                SettingsControlRow(
-                    title: "Menubar Icon",
-                    description: "Choose the menu bar icon style."
-                ) {
+                SettingsControlRow(title: "Menubar Icon") {
                     SettingsSegmentedControl(
                         options: MenuBarIconStyle.allCases,
                         selection: $preferences.menuBarIconStyle,
@@ -184,10 +187,7 @@ struct SettingsView: View {
 
                 SettingsDashedDivider()
 
-                SettingsControlRow(
-                    title: "Panel Size",
-                    description: "Adjust the panel size."
-                ) {
+                SettingsControlRow(title: "Panel Size") {
                     SettingsSegmentedControl(
                         options: PanelSize.allCases,
                         selection: $preferences.panelSize,
@@ -200,10 +200,7 @@ struct SettingsView: View {
                 SettingsDashedDivider()
 
                 VStack(alignment: .leading, spacing: 0) {
-                    SettingsControlRow(
-                        title: "Code Highlight Theme",
-                        description: "Code highlighting color scheme for code in note content."
-                    ) {
+                    SettingsControlRow(title: "Code Highlight Theme") {
                         HStack(spacing: AppSpacing.small) {
                             Picker("", selection: $preferences.codeHighlightTheme) {
                                 ForEach(CodeHighlightTheme.allCases) { theme in
@@ -240,17 +237,12 @@ struct SettingsView: View {
         SettingsSection(
             title: "Export / Import",
             systemImage: "arrow.up.arrow.down",
-            description: "Move notes between Quick Notes installations using a Markdown document."
+            description: "Use a Markdown document to back up or migrate note data."
         ) {
             VStack(spacing: 0) {
                 HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Export Notes")
-                            .font(.system(size: 13, weight: .medium))
-                        Text("Save titles, creation dates, tags, and Markdown content.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    Text("Export Notes")
+                        .font(.system(size: 13, weight: .medium))
 
                     Spacer()
 
@@ -294,13 +286,8 @@ struct SettingsView: View {
                     .padding(.vertical, AppSpacing.medium)
 
                 HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Import Notes")
-                            .font(.system(size: 13, weight: .medium))
-                        Text("Merge another Quick Notes Markdown export into this library.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    Text("Import Notes")
+                        .font(.system(size: 13, weight: .medium))
 
                     Spacer()
 
@@ -320,7 +307,7 @@ struct SettingsView: View {
         SettingsSection(
             title: "MCP Server",
             systemImage: "cpu",
-            description: "Let a local Agent read and manage this library. The server uses a local subprocess, not a network address."
+            description: "Connect a local Agent to read and manage note data."
         ) {
             VStack(alignment: .leading, spacing: AppSpacing.medium) {
                 SettingsControlRow(
@@ -338,7 +325,7 @@ struct SettingsView: View {
 
                 SettingsControlRow(
                     title: "Allow MCP Delete",
-                    description: "When enabled, Agents can delete a note by its ID or an unused tag by its exact name."
+                    description: "Choose whether Agents may delete specified notes or tags."
                 ) {
                     Toggle("Allow MCP Delete", isOn: $preferences.mcpDeletionEnabled)
                         .labelsHidden()
@@ -364,7 +351,7 @@ struct SettingsView: View {
                                     .foregroundStyle(.secondary)
                             }
 
-                            Text("Copy this configuration into the prompt for the Agent where you want to install it.")
+                            Text("Copy the installation prompt to your Agent, or expand to copy the parameters for manual setup.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -377,24 +364,50 @@ struct SettingsView: View {
                     Spacer()
 
                     Button {
-                        copyMCPConfiguration()
+                        copyMCPConfigurationValue(
+                            QuickNotesMCPStdioConfiguration.installationPrompt,
+                            target: .installationPrompt
+                        )
                     } label: {
                         Label(
-                            mcpConfigurationCopied ? "Copied" : "Copy Configuration",
-                            systemImage: mcpConfigurationCopied ? "checkmark" : "doc.on.doc"
+                            copiedMCPConfigurationTarget == .installationPrompt
+                                ? "Copied"
+                                : "Copy Install Prompt",
+                            systemImage: copiedMCPConfigurationTarget == .installationPrompt
+                                ? "checkmark"
+                                : "doc.on.doc"
                         )
                     }
                     .appProminentButton()
                     .fixedSize()
-                    .accessibilityLabel("Copy Configuration")
+                    .accessibilityLabel("Copy Install Prompt")
                 }
 
                 if isMCPConfigurationExpanded {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(verbatim: QuickNotesMCPStdioConfiguration.configuration)
-                            .font(.system(.caption, design: .monospaced))
-                            .textSelection(.enabled)
-                            .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: AppSpacing.small) {
+                        MCPConfigurationValueRow(
+                            title: "Command",
+                            value: QuickNotesMCPStdioConfiguration.command,
+                            copyTitle: "Copy Command",
+                            isCopied: copiedMCPConfigurationTarget == .command
+                        ) {
+                            copyMCPConfigurationValue(
+                                QuickNotesMCPStdioConfiguration.command,
+                                target: .command
+                            )
+                        }
+
+                        MCPConfigurationValueRow(
+                            title: "Arguments",
+                            value: QuickNotesMCPStdioConfiguration.arguments.joined(separator: "\n"),
+                            copyTitle: "Copy Arguments",
+                            isCopied: copiedMCPConfigurationTarget == .arguments
+                        ) {
+                            copyMCPConfigurationValue(
+                                QuickNotesMCPStdioConfiguration.arguments.joined(separator: "\n"),
+                                target: .arguments
+                            )
+                        }
                     }
                 }
 
@@ -403,15 +416,15 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: AppSpacing.small) {
                     SettingsControlRow(
                         title: "Quick Notes Agent Skill",
-                        description: "Install the bundled skill for your Agents, or save a copy as a Markdown document."
+                        description: "Install the Skill to help Agents manage note data more easily."
                     ) {
                         HStack(spacing: AppSpacing.small) {
-                            Button("Save") {
+                            Button("Save As") {
                                 saveQuickNotesAgentSkill()
                             }
                             .appSecondaryButton()
                             .fixedSize()
-                            .accessibilityLabel("Save")
+                            .accessibilityLabel("Save As")
 
                             Button("Install for Agents") {
                                 installQuickNotesAgentSkill()
@@ -436,7 +449,7 @@ struct SettingsView: View {
         SettingsSection(
             title: "Display Language",
             systemImage: "globe",
-            description: "Follow the system, or choose manually.",
+            description: "Follow the system by default, or choose a language.",
             headerTrailing: {
                 Picker("", selection: $preferences.displayLanguage) {
                     ForEach(AppLanguagePreference.allCases) { language in
@@ -571,13 +584,18 @@ struct SettingsView: View {
         AppLocalization.string(key, language: appLanguage)
     }
 
-    private func copyMCPConfiguration() {
+    private func copyMCPConfigurationValue(
+        _ value: String,
+        target: MCPConfigurationCopyTarget
+    ) {
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(
-            QuickNotesMCPStdioConfiguration.configuration,
-            forType: .string
-        )
-        mcpConfigurationCopied = true
+        NSPasteboard.general.setString(value, forType: .string)
+        copiedMCPConfigurationTarget = target
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            guard copiedMCPConfigurationTarget == target else { return }
+            copiedMCPConfigurationTarget = nil
+        }
     }
 
     private func installQuickNotesAgentSkill() {
@@ -886,14 +904,70 @@ private struct SettingsSegmentedControl<Option: Hashable>: View {
     }
 }
 
+private struct MCPConfigurationValueRow: View {
+    let title: String
+    let value: String
+    let copyTitle: String
+    let isCopied: Bool
+    let copy: () -> Void
+    @State private var isCopyButtonHovering = false
+
+    var body: some View {
+        HStack(spacing: AppSpacing.small) {
+            Text(LocalizedStringKey(title))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 68, alignment: .leading)
+
+            Text(verbatim: value)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+                .padding(.horizontal, 9)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: AppControlMetrics.formControlHeight)
+                .background(AppTheme.inputSurface)
+                .clipShape(.rect(cornerRadius: AppControlMetrics.inputCornerRadius))
+                .overlay {
+                    RoundedRectangle(cornerRadius: AppControlMetrics.inputCornerRadius)
+                        .stroke(AppTheme.border)
+                }
+
+            Button(action: copy) {
+                Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
+                    .font(.system(size: NoteCardLayout.actionIconSize, weight: .medium))
+                    .foregroundStyle(
+                        isCopied
+                            ? Color.green
+                            : (isCopyButtonHovering ? AppTheme.brandBlue : Color.secondary)
+                    )
+                    .frame(
+                        width: AppControlMetrics.formControlHeight,
+                        height: AppControlMetrics.formControlHeight
+                    )
+                    .background(isCopyButtonHovering ? AppTheme.hoverFill : Color.clear)
+                    .clipShape(.rect(cornerRadius: NoteCardLayout.actionHoverCornerRadius))
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .onHover { isCopyButtonHovering = $0 }
+            .animation(.easeOut(duration: 0.14), value: isCopyButtonHovering)
+            .accessibilityLabel(Text(LocalizedStringKey(copyTitle)))
+            .help(Text(LocalizedStringKey(copyTitle)))
+        }
+    }
+}
+
 private struct SettingsControlRow<Control: View>: View {
     let title: String
-    let description: String
+    let description: String?
     let control: Control
 
     init(
         title: String,
-        description: String,
+        description: String? = nil,
         @ViewBuilder control: () -> Control
     ) {
         self.title = title
@@ -906,9 +980,11 @@ private struct SettingsControlRow<Control: View>: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(LocalizedStringKey(title))
                     .font(.system(size: 13, weight: .medium))
-                Text(LocalizedStringKey(description))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if let description {
+                    Text(LocalizedStringKey(description))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer(minLength: AppSpacing.small)
             control
