@@ -98,8 +98,19 @@ enum NewNoteRevealBehavior {
 
 @MainActor
 final class NewNoteScrollSettleObserver: ObservableObject {
+    private let waitForScrollSettle: @MainActor () async throws -> Void
     private var pendingNoteID: UUID?
     private var settleTask: Task<Void, Never>?
+
+    init(
+        waitForScrollSettle: @escaping @MainActor () async throws -> Void = {
+            try await Task.sleep(
+                for: .milliseconds(NewNoteRevealBehavior.scrollSettleDelayMilliseconds)
+            )
+        }
+    ) {
+        self.waitForScrollSettle = waitForScrollSettle
+    }
 
     func begin(noteID: UUID) {
         settleTask?.cancel()
@@ -118,10 +129,13 @@ final class NewNoteScrollSettleObserver: ObservableObject {
         settleTask = nil
         guard targetIsVisible else { return }
 
+        let waitForScrollSettle = self.waitForScrollSettle
         settleTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(
-                for: .milliseconds(NewNoteRevealBehavior.scrollSettleDelayMilliseconds)
-            )
+            do {
+                try await waitForScrollSettle()
+            } catch {
+                return
+            }
             guard !Task.isCancelled, self?.pendingNoteID == noteID else { return }
             self?.pendingNoteID = nil
             self?.settleTask = nil

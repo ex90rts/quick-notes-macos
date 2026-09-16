@@ -711,27 +711,76 @@ struct QuickNotesTests {
     @Test("New note attention waits until visible scrolling has settled")
     @MainActor
     func newNoteScrollSettleTiming() async {
-        let observer = NewNoteScrollSettleObserver()
+        let delay = ManualScrollSettleDelay()
+        let observer = NewNoteScrollSettleObserver(waitForScrollSettle: delay.wait)
         let noteID = UUID()
-        var completedNoteID: UUID?
+        var completedNoteIDs: [UUID] = []
 
+        #expect(NewNoteRevealBehavior.scrollSettleDelayMilliseconds == 140)
         observer.begin(noteID: noteID)
         observer.observeScrollChange(
             noteID: noteID,
             targetIsVisible: true,
-            completion: { completedNoteID = $0 }
+            completion: { completedNoteIDs.append($0) }
         )
-        try? await Task.sleep(for: .milliseconds(80))
+        await delay.waitUntilScheduled(count: 1)
         observer.observeScrollChange(
             noteID: noteID,
             targetIsVisible: true,
-            completion: { completedNoteID = $0 }
+            completion: { completedNoteIDs.append($0) }
         )
-        try? await Task.sleep(for: .milliseconds(80))
-        #expect(completedNoteID == nil)
+        await delay.waitUntilScheduled(count: 2)
+        #expect(completedNoteIDs.isEmpty)
 
-        try? await Task.sleep(for: .milliseconds(80))
-        #expect(completedNoteID == noteID)
+        delay.resumeWait(at: 0)
+        await delay.waitUntilReturned(count: 1)
+        #expect(completedNoteIDs.isEmpty)
+
+        delay.resumeWait(at: 1)
+        await delay.waitUntilReturned(count: 2)
+        #expect(completedNoteIDs == [noteID])
+
+        observer.observeScrollChange(
+            noteID: noteID,
+            targetIsVisible: true,
+            completion: { completedNoteIDs.append($0) }
+        )
+        #expect(delay.scheduledCount == 2)
+        #expect(completedNoteIDs == [noteID])
+    }
+
+    @Test("New note attention ignores cancelled and no-longer-visible targets")
+    @MainActor
+    func newNoteScrollSettleCancellation() async {
+        for targetBecomesInvisible in [false, true] {
+            let delay = ManualScrollSettleDelay()
+            let observer = NewNoteScrollSettleObserver(waitForScrollSettle: delay.wait)
+            let noteID = UUID()
+            var completedNoteIDs: [UUID] = []
+
+            observer.begin(noteID: noteID)
+            observer.observeScrollChange(
+                noteID: noteID,
+                targetIsVisible: true,
+                completion: { completedNoteIDs.append($0) }
+            )
+            await delay.waitUntilScheduled(count: 1)
+
+            if targetBecomesInvisible {
+                observer.observeScrollChange(
+                    noteID: noteID,
+                    targetIsVisible: false,
+                    completion: { completedNoteIDs.append($0) }
+                )
+            } else {
+                observer.cancel()
+            }
+
+            delay.resumeWait(at: 0)
+            await delay.waitUntilReturned(count: 1)
+            #expect(completedNoteIDs.isEmpty)
+            #expect(delay.scheduledCount == 1)
+        }
     }
 
     @Test("Virtual note height indexes preserve window layout at scroll boundaries")
@@ -1978,6 +2027,48 @@ private final class CountingClipboardRepository: ClipboardRepository {
 
     func trimItems(to limit: Int) throws {
         items = Array(items.prefix(max(limit, 0)))
+    }
+}
+
+// Cancelled waits are also resumed to verify that stale tasks cannot call back.
+@MainActor
+private final class ManualScrollSettleDelay {
+    private var waits: [CheckedContinuation<Void, Never>?] = []
+    private var returnedCount = 0
+    private var scheduledNotification: CheckedContinuation<Void, Never>?
+    private var returnedNotification: CheckedContinuation<Void, Never>?
+
+    var scheduledCount: Int { waits.count }
+
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            waits.append(continuation)
+            let notification = scheduledNotification
+            scheduledNotification = nil
+            notification?.resume()
+        }
+        returnedCount += 1
+        let notification = returnedNotification
+        returnedNotification = nil
+        notification?.resume()
+    }
+
+    func waitUntilScheduled(count: Int) async {
+        while scheduledCount < count {
+            await withCheckedContinuation { scheduledNotification = $0 }
+        }
+    }
+
+    func waitUntilReturned(count: Int) async {
+        while returnedCount < count {
+            await withCheckedContinuation { returnedNotification = $0 }
+        }
+    }
+
+    func resumeWait(at index: Int) {
+        let continuation = waits[index]
+        waits[index] = nil
+        continuation?.resume()
     }
 }
 
