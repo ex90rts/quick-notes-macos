@@ -33,7 +33,7 @@ struct ClipboardView: View {
         HStack(spacing: AppSpacing.small) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(AppTheme.brandBlue)
+                .foregroundStyle(AppTheme.accent)
 
             TextField("Filter clipboard content", text: $searchQuery)
                 .textFieldStyle(.plain)
@@ -57,7 +57,7 @@ struct ClipboardView: View {
         .clipShape(.rect(cornerRadius: AppControlMetrics.inputCornerRadius))
         .overlay {
             RoundedRectangle(cornerRadius: AppControlMetrics.inputCornerRadius)
-                .stroke(isSearchFocused ? AppTheme.brandBlue : AppTheme.border)
+                .stroke(isSearchFocused ? AppTheme.accent : AppTheme.border)
         }
         .padding(.horizontal, AppSpacing.large)
         .padding(.top, 10)
@@ -227,7 +227,8 @@ struct ClipboardItemRow: View {
                     ClipboardItemAction(
                         title: "Add to Note",
                         systemImage: "plus",
-                        accent: AppTheme.brandBlue
+                        accent: AppTheme.accent,
+                        usesAppAccent: true
                     ) {
                         showAddToNote = true
                     }
@@ -257,7 +258,7 @@ struct ClipboardItemRow: View {
         .background(AppTheme.elevatedSurface)
         .clipShape(.rect(cornerRadius: 9))
         .shadow(
-            color: AppTheme.brandBlue.opacity(isHovering ? 0.10 : 0.035),
+            color: AppTheme.accent.opacity(isHovering ? 0.10 : 0.035),
             radius: isHovering ? 7 : 2,
             y: isHovering ? 3 : 1
         )
@@ -332,6 +333,7 @@ private struct ClipboardItemAction: View {
     let title: String
     let systemImage: String
     let accent: Color
+    var usesAppAccent = false
     let action: () -> Void
     @State private var isHovering = false
 
@@ -342,7 +344,11 @@ private struct ClipboardItemAction: View {
                 .foregroundStyle(accent)
                 .padding(.horizontal, 7)
                 .frame(height: 25)
-                .background(isHovering ? accent.opacity(0.10) : Color.clear)
+                .background(
+                    isHovering
+                        ? (usesAppAccent ? AppTheme.accentHoverBackground : accent.opacity(0.10))
+                        : Color.clear
+                )
                 .clipShape(.rect(cornerRadius: 5))
                 .contentShape(.rect)
         }

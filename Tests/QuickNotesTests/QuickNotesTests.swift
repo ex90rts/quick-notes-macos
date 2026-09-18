@@ -55,6 +55,7 @@ struct QuickNotesTests {
         #expect(initialPreferences.panelSize == .medium)
         #expect(initialPreferences.displayLanguage == .automatic)
         #expect(initialPreferences.codeHighlightTheme == .github)
+        #expect(initialPreferences.accentColor == .system)
         #expect(initialPreferences.mcpServerEnabled)
         #expect(!initialPreferences.mcpDeletionEnabled)
         #expect(PanelSize.small.contentSize == CGSize(width: 520, height: 600))
@@ -63,6 +64,7 @@ struct QuickNotesTests {
         initialPreferences.panelSize = .large
         initialPreferences.displayLanguage = .traditionalChinese
         initialPreferences.codeHighlightTheme = .tokyoNight
+        initialPreferences.accentColor = .purple
         initialPreferences.mcpServerEnabled = false
         initialPreferences.mcpDeletionEnabled = true
         let restoredPreferences = AppPreferences(defaults: defaults)
@@ -70,10 +72,14 @@ struct QuickNotesTests {
         #expect(restoredPreferences.panelSize == .large)
         #expect(restoredPreferences.displayLanguage == .traditionalChinese)
         #expect(restoredPreferences.codeHighlightTheme == .tokyoNight)
+        #expect(restoredPreferences.accentColor == .purple)
+        #expect(AppPreferences.selectedAccentColor(defaults: defaults) == .purple)
+        #expect(AppAccentColor.allCases.count == 13)
         #expect(!restoredPreferences.mcpServerEnabled)
         #expect(restoredPreferences.mcpDeletionEnabled)
         #expect(PanelSize.medium.contentSize == CGSize(width: 620, height: 720))
         #expect(restoredPreferences.panelSize.contentSize == CGSize(width: 720, height: 840))
+        #expect(AppAccentColor.allCases.count == 13)
     }
 
     @Test("MCP installation configuration launches the bundled executable over stdio")

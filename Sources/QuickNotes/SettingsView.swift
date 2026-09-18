@@ -58,6 +58,7 @@ struct SettingsView: View {
             isMCPConfigurationExpanded = false
             vm.currentView = .notesList
         }
+        .id(preferences.accentColor)
     }
 
     private var settingsContent: some View {
@@ -72,6 +73,10 @@ struct SettingsView: View {
                 transferSection
             }
             .padding(AppSpacing.large)
+            // AppTheme reads the selected color from preferences. Give every
+            // settings control a fresh identity when that source changes so
+            // on-screen and off-screen controls repaint in the same update.
+            .id(preferences.accentColor)
         }
         .background(AppTheme.canvas)
     }
@@ -97,7 +102,7 @@ struct SettingsView: View {
                         TextField("New tag name", text: $vm.tagInput)
                             .textFieldStyle(.plain)
                             .focused($isTagInputFocused)
-                            .tint(AppTheme.brandBlue)
+                            .tint(AppTheme.accent)
                             .onSubmit { vm.addTag() }
 
                         if !vm.tagInput.isEmpty {
@@ -187,6 +192,13 @@ struct SettingsView: View {
 
                 SettingsDashedDivider()
 
+                SettingsControlRow(title: "Accent Color") {
+                    AccentColorPicker(selection: $preferences.accentColor)
+                }
+                .padding(.vertical, AppSpacing.medium)
+
+                SettingsDashedDivider()
+
                 SettingsControlRow(title: "Panel Size") {
                     SettingsSegmentedControl(
                         options: PanelSize.allCases,
@@ -202,20 +214,14 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     SettingsControlRow(title: "Code Highlight Theme") {
                         HStack(spacing: AppSpacing.small) {
-                            Picker("", selection: $preferences.codeHighlightTheme) {
-                                ForEach(CodeHighlightTheme.allCases) { theme in
-                                    Text(verbatim: theme.title)
-                                        .tag(theme)
-                                }
-                            }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                            .controlSize(.large)
-                            .frame(
+                            SettingsMenuPicker(
+                                selection: $preferences.codeHighlightTheme,
+                                options: CodeHighlightTheme.allCases,
                                 width: 150,
-                                height: AppControlMetrics.formControlHeight
-                            )
-                            .accessibilityLabel(Text("Code highlight theme"))
+                                accessibilityLabel: "Code highlight theme"
+                            ) { theme in
+                                Text(verbatim: theme.title)
+                            }
 
                             CodeHighlightThemePreviewButton(
                                 isPreviewExpanded: $isCodeHighlightPreviewExpanded
@@ -277,7 +283,7 @@ struct SettingsView: View {
                 if !vm.notes.isEmpty, let exportMessage {
                     Text(verbatim: exportMessage)
                         .font(.caption)
-                        .foregroundStyle(exportSucceeded ? AppTheme.brandBlue : Color.red)
+                        .foregroundStyle(exportSucceeded ? AppTheme.accent : Color.red)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, AppSpacing.small)
                 }
@@ -317,7 +323,7 @@ struct SettingsView: View {
                     Toggle("Enable MCP Server", isOn: $preferences.mcpServerEnabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .tint(AppTheme.brandBlue)
+                        .tint(AppTheme.accent)
                         .accessibilityLabel("Enable MCP Server")
                 }
 
@@ -330,7 +336,7 @@ struct SettingsView: View {
                     Toggle("Allow MCP Delete", isOn: $preferences.mcpDeletionEnabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .tint(AppTheme.brandBlue)
+                        .tint(AppTheme.accent)
                         .accessibilityLabel("Allow MCP Delete")
                 }
 
@@ -451,20 +457,14 @@ struct SettingsView: View {
             systemImage: "globe",
             description: "Follow the system by default, or choose a language.",
             headerTrailing: {
-                Picker("", selection: $preferences.displayLanguage) {
-                    ForEach(AppLanguagePreference.allCases) { language in
-                        Text(LocalizedStringKey(language.title))
-                            .tag(language)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .controlSize(.large)
-                .frame(
+                SettingsMenuPicker(
+                    selection: $preferences.displayLanguage,
+                    options: AppLanguagePreference.allCases,
                     width: 180,
-                    height: AppControlMetrics.formControlHeight
-                )
-                .accessibilityLabel(Text("Display language"))
+                    accessibilityLabel: "Display language"
+                ) { language in
+                    Text(LocalizedStringKey(language.title))
+                }
             }
         ) {
             EmptyView()
@@ -677,19 +677,19 @@ private struct CodeHighlightThemePreviewButton: View {
             Image(systemName: isPreviewExpanded ? "eye.slash" : "eye")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(
-                    isPreviewExpanded ? AppTheme.brandBlue : Color.secondary
+                    isPreviewExpanded ? AppTheme.accentForeground : Color.secondary
                 )
                 .frame(
                     width: Self.size,
                     height: Self.size
                 )
                 .background(
-                    isPreviewExpanded ? AppTheme.selectedFill : AppTheme.quietFill
+                    isPreviewExpanded ? AppTheme.accentBackground : AppTheme.quietFill
                 )
                 .clipShape(.rect(cornerRadius: AppControlMetrics.inputCornerRadius))
                 .overlay {
                     RoundedRectangle(cornerRadius: AppControlMetrics.inputCornerRadius)
-                        .stroke(isPreviewExpanded ? AppTheme.brandBlue : AppTheme.border)
+                        .stroke(isPreviewExpanded ? AppTheme.accent : AppTheme.border)
                 }
         }
         .buttonStyle(.plain)
@@ -823,7 +823,7 @@ private struct HistoryLimitStepButton: View {
                 .background(
                     !isEnabled
                         ? AppTheme.disabledFill
-                        : (isHovering ? AppTheme.hoverFill : AppTheme.elevatedSurface)
+                        : (isHovering ? AppTheme.accentHoverBackground : AppTheme.elevatedSurface)
                 )
                 .clipShape(.rect(cornerRadius: AppControlMetrics.inputCornerRadius))
                 .overlay {
@@ -850,10 +850,12 @@ private struct SettingsHeaderAction: View {
         Button(action: action) {
             Label(LocalizedStringKey(title), systemImage: systemImage)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(isEnabled ? AppTheme.brandBlue : AppTheme.disabledForeground)
+                .foregroundStyle(
+                    isEnabled ? AppTheme.accent : AppTheme.disabledForeground
+                )
                 .padding(.horizontal, 8)
                 .frame(height: 26)
-                .background(isHovering && isEnabled ? AppTheme.selectedFill : Color.clear)
+                .background(isHovering && isEnabled ? AppTheme.accentHoverBackground : Color.clear)
                 .clipShape(.rect(cornerRadius: 6))
         }
         .buttonStyle(.plain)
@@ -878,10 +880,12 @@ private struct SettingsSegmentedControl<Option: Hashable>: View {
                 } label: {
                     Text(LocalizedStringKey(title(option)))
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(selection == option ? Color.white : Color.primary)
+                        .foregroundStyle(
+                            selection == option ? AppTheme.accentForeground : Color.primary
+                        )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .contentShape(.rect)
-                        .background(selection == option ? AppTheme.brandBlue : Color.clear)
+                        .background(selection == option ? AppTheme.accentBackground : Color.clear)
                         .clipShape(.rect(cornerRadius: 5))
                 }
                 .buttonStyle(.plain)
@@ -901,6 +905,128 @@ private struct SettingsSegmentedControl<Option: Hashable>: View {
         .animation(.easeOut(duration: 0.12), value: selection)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Text(LocalizedStringKey(accessibilityLabel)))
+    }
+}
+
+/// A fully themed menu trigger. Native macOS menu pickers reserve the indicator
+/// button for the system tint, which can diverge from a user-selected app accent.
+private struct SettingsMenuPicker<Option: Hashable, OptionLabel: View>: View {
+    @Binding var selection: Option
+    let options: [Option]
+    let width: CGFloat
+    let accessibilityLabel: String
+    let optionLabel: (Option) -> OptionLabel
+    @State private var isHovering = false
+    @State private var isPresented = false
+
+    init(
+        selection: Binding<Option>,
+        options: [Option],
+        width: CGFloat,
+        accessibilityLabel: String,
+        @ViewBuilder optionLabel: @escaping (Option) -> OptionLabel
+    ) {
+        _selection = selection
+        self.options = options
+        self.width = width
+        self.accessibilityLabel = accessibilityLabel
+        self.optionLabel = optionLabel
+    }
+
+    var body: some View {
+        Button {
+            isPresented.toggle()
+        } label: {
+            triggerLabel
+        }
+        .buttonStyle(.plain)
+        .frame(width: width, height: AppControlMetrics.formControlHeight)
+        .onHover { isHovering = $0 }
+        .popover(isPresented: $isPresented, arrowEdge: .bottom) {
+            optionsPopover
+        }
+        .accessibilityLabel(Text(LocalizedStringKey(accessibilityLabel)))
+    }
+
+    private var triggerLabel: some View {
+        HStack(spacing: 0) {
+            optionLabel(selection)
+                .lineLimit(1)
+                .padding(.horizontal, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(AppTheme.accentForeground)
+                .frame(
+                    width: AppControlMetrics.formControlHeight,
+                    height: AppControlMetrics.formControlHeight
+                )
+                .background(AppTheme.accentBackground)
+        }
+        .background(isHovering ? AppTheme.accentHoverBackground : AppTheme.elevatedSurface)
+        .clipShape(.rect(cornerRadius: AppControlMetrics.inputCornerRadius))
+        .overlay {
+            RoundedRectangle(cornerRadius: AppControlMetrics.inputCornerRadius)
+                .stroke(AppTheme.border)
+        }
+        .contentShape(.rect)
+    }
+
+    private var optionsPopover: some View {
+        ScrollView {
+            VStack(spacing: 2) {
+                ForEach(options, id: \.self) { option in
+                    Button {
+                        selection = option
+                        isPresented = false
+                    } label: {
+                        HStack(spacing: AppSpacing.small) {
+                            optionLabel(option)
+                                .lineLimit(1)
+                            Spacer(minLength: AppSpacing.small)
+                            if selection == option {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 11, weight: .semibold))
+                            }
+                        }
+                        .foregroundStyle(
+                            selection == option ? AppTheme.accentForeground : Color.primary
+                        )
+                        .padding(.horizontal, 10)
+                        .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+                        .background(
+                            selection == option ? AppTheme.accentBackground : Color.clear
+                        )
+                        .clipShape(.rect(cornerRadius: 6))
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(6)
+        }
+        .frame(width: max(width, 160), height: min(CGFloat(options.count) * 32 + 12, 300))
+    }
+}
+
+private struct AccentColorPicker: View {
+    @Binding var selection: AppAccentColor
+
+    var body: some View {
+        SettingsMenuPicker(
+            selection: $selection,
+            options: AppAccentColor.allCases,
+            width: 160,
+            accessibilityLabel: "Accent Color"
+        ) { option in
+            HStack(spacing: AppSpacing.small) {
+                Circle()
+                    .fill(option.color)
+                    .frame(width: 12, height: 12)
+                Text(LocalizedStringKey(option.title))
+            }
+        }
     }
 }
 
@@ -941,13 +1067,13 @@ private struct MCPConfigurationValueRow: View {
                     .foregroundStyle(
                         isCopied
                             ? Color.green
-                            : (isCopyButtonHovering ? AppTheme.brandBlue : Color.secondary)
+                            : (isCopyButtonHovering ? AppTheme.accent : Color.secondary)
                     )
                     .frame(
                         width: AppControlMetrics.formControlHeight,
                         height: AppControlMetrics.formControlHeight
                     )
-                    .background(isCopyButtonHovering ? AppTheme.hoverFill : Color.clear)
+                    .background(isCopyButtonHovering ? AppTheme.accentHoverBackground : Color.clear)
                     .clipShape(.rect(cornerRadius: NoteCardLayout.actionHoverCornerRadius))
                     .contentShape(.rect)
             }
@@ -1040,9 +1166,9 @@ struct SettingsSection<Content: View, HeaderTrailing: View>: View {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: systemImage)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(AppTheme.brandBlue)
+                    .foregroundStyle(AppTheme.accent)
                     .frame(width: 28, height: 28)
-                    .background(AppTheme.selectedFill)
+                    .background(AppTheme.accentHoverBackground)
                     .clipShape(.rect(cornerRadius: 7))
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -1065,7 +1191,7 @@ struct SettingsSection<Content: View, HeaderTrailing: View>: View {
         .background(AppTheme.elevatedSurface)
         .clipShape(.rect(cornerRadius: 10))
         .shadow(
-            color: AppTheme.brandBlue.opacity(0.035),
+            color: AppTheme.accent.opacity(0.035),
             radius: 2,
             y: 1
         )
@@ -1105,7 +1231,7 @@ struct TagSettingsFlowLayout: View {
                         .font(.system(size: 11, weight: .medium))
                         .padding(.leading, 10)
                         .padding(.vertical, 4)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(AppTheme.accent)
 
                     Button {
                         selectedTag = tag
@@ -1113,7 +1239,9 @@ struct TagSettingsFlowLayout: View {
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(hoveredTag == tag ? Color.red : Color.secondary)
+                            .foregroundStyle(
+                                hoveredTag == tag ? Color.red : AppTheme.accent
+                            )
                             .frame(width: 16, height: 16)
                     }
                     .buttonStyle(.plain)
@@ -1130,8 +1258,8 @@ struct TagSettingsFlowLayout: View {
                         )
                     )
                 }
-                .foregroundStyle(AppTheme.brandBlue)
-                .background(AppTheme.selectedFill)
+                .foregroundStyle(AppTheme.accent)
+                .background(AppTheme.accentHoverBackground)
                 .clipShape(.capsule)
             }
         }

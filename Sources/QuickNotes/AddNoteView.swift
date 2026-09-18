@@ -99,16 +99,16 @@ struct TagFlowLayout: View {
                         .frame(height: 28)
                         .background(
                             isSelected
-                                ? AppTheme.brandBlue
+                                ? AppTheme.accentBackground
                                 : (hoveredTag == tag
-                                    ? AppTheme.brandBlue.opacity(0.07)
+                                    ? AppTheme.accentHoverBackground
                                     : AppTheme.elevatedSurface)
                         )
-                        .foregroundStyle(isSelected ? Color.white : Color.primary)
+                        .foregroundStyle(isSelected ? AppTheme.accentForeground : Color.primary)
                         .clipShape(.capsule)
                         .overlay {
                             Capsule()
-                                .stroke(isSelected ? AppTheme.brandBlue : AppTheme.border)
+                                .stroke(isSelected ? AppTheme.accent : AppTheme.border)
                         }
                 }
                 .buttonStyle(.plain)
@@ -322,13 +322,13 @@ struct NoteRenderingModePicker: View {
             }
         }
         .font(.system(size: NoteRenderingMenuLayout.fontSize))
-        .foregroundStyle(isSelected ? Color.white : Color.primary)
+        .foregroundStyle(isSelected ? AppTheme.accentForeground : Color.primary)
         .padding(.horizontal, 8)
         .frame(
             width: NoteRenderingMenuLayout.itemWidth,
             height: NoteRenderingMenuLayout.itemHeight
         )
-        .background(isSelected ? AppTheme.brandBlue : Color.clear)
+        .background(isSelected ? AppTheme.accentBackground : Color.clear)
         .clipShape(.rect(cornerRadius: 5))
     }
 

@@ -103,6 +103,7 @@
 "Appearance" = "外觀";
 "Customize selected appearance settings." = "自訂部分顯示外觀。";
 "Menubar Icon" = "選單列圖示";
+"Accent Color" = "強調色";
 "Icon style" = "圖示樣式";
 "Black & White" = "黑白";
 "Color" = "彩色";
@@ -111,6 +112,18 @@
 "Small" = "小";
 "Medium" = "中";
 "Large" = "大";
+"Red" = "紅色";
+"Orange" = "橙色";
+"Yellow" = "黃色";
+"Green" = "綠色";
+"Mint" = "薄荷色";
+"Teal" = "青綠色";
+"Cyan" = "青色";
+"Blue" = "藍色";
+"Indigo" = "靛藍色";
+"Purple" = "紫色";
+"Pink" = "粉紅色";
+"Brown" = "棕色";
 "Code Highlight Theme" = "程式碼高亮主題";
 "Code highlight theme" = "程式碼高亮主題";
 "Preview code highlight theme" = "預覽程式碼高亮主題";

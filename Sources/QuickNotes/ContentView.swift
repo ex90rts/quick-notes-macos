@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var vm: NotesViewModel
+    @EnvironmentObject var preferences: AppPreferences
 
     var body: some View {
         switch vm.currentView {
@@ -69,16 +70,18 @@ struct TagFilterFlowLayout: View {
                             .font(.system(size: 12, weight: .medium))
                             .padding(.horizontal, 9)
                             .frame(height: NotesFilterBarLayout.controlHeight)
-                            .foregroundStyle(selected ? Color.white : Color.primary)
+                            .foregroundStyle(
+                                selected ? AppTheme.accentForeground : Color.primary
+                            )
                             .background(
                                 selected
-                                    ? AppTheme.brandBlue
-                                    : (hoveredTag == tag ? AppTheme.brandBlue.opacity(0.07) : AppTheme.elevatedSurface)
+                                    ? AppTheme.accentBackground
+                                    : (hoveredTag == tag ? AppTheme.accentHoverBackground : AppTheme.elevatedSurface)
                             )
                             .clipShape(.capsule)
                             .overlay {
                                 Capsule()
-                                    .stroke(selected ? AppTheme.brandBlue : AppTheme.border)
+                                    .stroke(selected ? AppTheme.accent : AppTheme.border)
                             }
                     }
                     .buttonStyle(.plain)
@@ -99,12 +102,16 @@ struct TagFilterFlowLayout: View {
             } label: {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(AppTheme.brandBlue)
+                    .foregroundStyle(
+                        AppTheme.accent
+                    )
                     .frame(
                         width: NotesFilterBarLayout.controlHeight,
                         height: NotesFilterBarLayout.controlHeight
                     )
-                    .background(isSearchButtonHovering ? AppTheme.selectedFill : AppTheme.elevatedSurface)
+                    .background(
+                        isSearchButtonHovering ? AppTheme.accentHoverBackground : AppTheme.elevatedSurface
+                    )
                     .clipShape(.capsule)
                     .overlay {
                         Capsule().stroke(AppTheme.border)
@@ -123,7 +130,7 @@ struct TagFilterFlowLayout: View {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(AppTheme.brandBlue)
+                    .foregroundStyle(AppTheme.accent)
 
                 TextField("Search titles and content (2+ characters)", text: $searchQuery)
                     .textFieldStyle(.plain)
@@ -147,7 +154,7 @@ struct TagFilterFlowLayout: View {
             .clipShape(.rect(cornerRadius: 6))
             .overlay {
                 RoundedRectangle(cornerRadius: 6)
-                    .stroke(isSearchFocused ? AppTheme.brandBlue : AppTheme.border)
+                    .stroke(isSearchFocused ? AppTheme.accent : AppTheme.border)
             }
 
             Button {
@@ -155,14 +162,16 @@ struct TagFilterFlowLayout: View {
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(
+                            Color.secondary
+                    )
                     .frame(
                         width: NotesFilterBarLayout.controlHeight,
                         height: NotesFilterBarLayout.controlHeight
                     )
                     .background(
                         isCloseSearchHovering
-                            ? AppTheme.hoverFill
+                            ? AppTheme.accentHoverBackground
                             : AppTheme.elevatedSurface
                     )
                     .clipShape(.circle)
@@ -281,7 +290,7 @@ struct NotesListView: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 24, height: 24)
                     .clipShape(.rect(cornerRadius: 6))
-                    .shadow(color: AppTheme.brandBlue.opacity(0.14), radius: 3, y: 1)
+                    .shadow(color: AppTheme.accent.opacity(0.14), radius: 3, y: 1)
                     .accessibilityHidden(true)
             }
 
@@ -363,7 +372,7 @@ struct NotesListView: View {
         .background(
             clipboardNoteContent == nil
                 ? AppTheme.disabledActionFill
-                : (isPasteButtonHovering ? AppTheme.selectedFill : AppTheme.elevatedSurface)
+                : (isPasteButtonHovering ? AppTheme.accentHoverBackground : AppTheme.elevatedSurface)
         )
         .clipShape(.rect(cornerRadius: HeaderActionLayout.cornerRadius))
         .overlay {
@@ -391,18 +400,20 @@ struct NotesListView: View {
             Image(systemName: "chevron.down")
                 .font(.system(size: 9, weight: .semibold))
         }
-        .foregroundStyle(isHeaderMenuPresented ? AppTheme.brandBlue : Color.primary)
+        .foregroundStyle(
+            isHeaderMenuPresented ? AppTheme.accent : Color.primary
+        )
         .padding(.horizontal, HeaderActionLayout.horizontalPadding)
         .frame(height: AppControlMetrics.formControlHeight)
         .background(
             isHeaderMenuPresented || isHeaderMenuHovering
-                ? AppTheme.selectedFill
+                ? AppTheme.accentHoverBackground
                 : AppTheme.elevatedSurface
         )
         .clipShape(.rect(cornerRadius: HeaderActionLayout.cornerRadius))
         .overlay {
             RoundedRectangle(cornerRadius: HeaderActionLayout.cornerRadius)
-                .stroke(isHeaderMenuPresented ? AppTheme.brandBlue : AppTheme.border)
+                .stroke(isHeaderMenuPresented ? AppTheme.accent : AppTheme.border)
         }
     }
 
@@ -591,7 +602,7 @@ private struct HeaderMenuAction: View {
             .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
             .background(
                 isHovering
-                    ? (isDestructive ? Color.red.opacity(0.10) : AppTheme.hoverFill)
+                    ? (isDestructive ? Color.red.opacity(0.10) : AppTheme.accentHoverBackground)
                     : Color.clear
             )
             .clipShape(.rect(cornerRadius: 6))
@@ -713,7 +724,7 @@ private struct NoteDissolveParticles: View {
                     height: side
                 )
                 let color = index.isMultiple(of: 7)
-                    ? AppTheme.brandBlue
+                    ? AppTheme.accent
                     : (index.isMultiple(of: 3) ? Color.secondary : Color.primary)
                 context.fill(
                     Path(roundedRect: rect, cornerRadius: side * 0.35),
@@ -815,7 +826,7 @@ private struct NoteActionButton<Label: View>: View {
                 )
                 .padding(NoteCardLayout.actionHoverPadding)
                 .background(
-                    isHovering && isEnabled ? AppTheme.hoverFill : Color.clear
+                    isHovering && isEnabled ? AppTheme.accentHoverBackground : Color.clear
                 )
                 .clipShape(.rect(cornerRadius: NoteCardLayout.actionHoverCornerRadius))
                 .contentShape(Rectangle())
@@ -890,12 +901,14 @@ struct NoteRow: View {
                 } label: {
                     Text("#ID")
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(AppTheme.brandBlue)
+                        .foregroundStyle(
+                            AppTheme.accent
+                        )
                         .padding(.horizontal, 5)
                         .frame(height: 22)
                         .background(
                             hoveredAction == .identifier
-                                ? AppTheme.selectedFill
+                                ? AppTheme.accentHoverBackground
                                 : Color.clear
                         )
                         .clipShape(.rect(cornerRadius: NoteCardLayout.actionHoverCornerRadius))
@@ -948,9 +961,9 @@ struct NoteRow: View {
                     ) {
                         Image(systemName: note.isPinned ? "pin.slash" : "pin")
                             .foregroundStyle(
-                                note.isPinned || hoveredAction == .pin
-                                    ? AppTheme.brandBlue
-                                    : Color.secondary
+                                note.isPinned
+                                    ? AppTheme.accent
+                                    : (hoveredAction == .pin ? AppTheme.accent : Color.secondary)
                             )
                             .opacity(canTogglePin ? 1 : 0.38)
                     }
@@ -995,7 +1008,7 @@ struct NoteRow: View {
                             .foregroundStyle(
                                 didJustCopy
                                     ? Color.green
-                                    : (hoveredAction == .copy ? AppTheme.brandBlue : Color.secondary)
+                                    : (hoveredAction == .copy ? AppTheme.accent : Color.secondary)
                             )
                     }
                     .accessibilityLabel(
@@ -1008,7 +1021,9 @@ struct NoteRow: View {
                         onHover: { hoveredAction = $0 ? .edit : nil }
                     ) {
                         Image(systemName: "highlighter")
-                            .foregroundStyle(hoveredAction == .edit ? AppTheme.brandBlue : Color.secondary)
+                            .foregroundStyle(
+                                hoveredAction == .edit ? AppTheme.accent : Color.secondary
+                            )
                     }
                     .accessibilityLabel("Edit")
                     .help("Edit")
@@ -1102,7 +1117,7 @@ struct NoteRow: View {
             }
         }
         .shadow(
-            color: AppTheme.brandBlue.opacity(isHovering ? 0.10 : 0.035),
+            color: AppTheme.accent.opacity(isHovering ? 0.10 : 0.035),
             radius: isHovering ? 7 : 2,
             y: isHovering ? 3 : 1
         )

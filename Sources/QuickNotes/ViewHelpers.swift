@@ -3,8 +3,16 @@ import HighlightSwift
 import SwiftUI
 
 enum AppTheme {
-    static let brandBlue = Color(red: 0.29, green: 0.53, blue: 0.91)
-    static let brandBlueDeep = Color(red: 0.22, green: 0.47, blue: 0.84)
+    /// The single source of truth for every primary interactive color.
+    /// AppAccentColor supplies a dynamic light/dark color when customized.
+    static var accent: Color {
+        AppPreferences.selectedAccentColor().color
+    }
+
+    static var accentForeground: Color {
+        AppPreferences.selectedAccentColor().foregroundColor
+    }
+
     static let pinnedGold = Color(red: 0.93, green: 0.65, blue: 0.16)
     static let surface = Color(nsColor: .controlBackgroundColor)
     static let canvas = surface.opacity(0.2)
@@ -13,8 +21,10 @@ enum AppTheme {
     static let modalSurface = Color(nsColor: .windowBackgroundColor)
     static let border = Color(nsColor: .separatorColor).opacity(0.72)
     static let quietFill = Color.primary.opacity(0.055)
-    static let hoverFill = Color.primary.opacity(0.085)
-    static let selectedFill = brandBlue.opacity(0.12)
+    /// Solid primary surface for an enabled selected state.
+    static var accentBackground: Color { accent }
+    /// Subtle primary-tinted surface for non-primary emphasis and hover states.
+    static var accentHoverBackground: Color { accent.opacity(0.10) }
     static let disabledFill = Color.primary.opacity(0.045)
     static let disabledForeground = Color(nsColor: .disabledControlTextColor)
     static let secondaryActionFill = Color.primary.opacity(0.085)
@@ -26,11 +36,13 @@ enum AppTheme {
     static let searchHighlightForeground = Color(red: 0.20, green: 0.16, blue: 0.03)
     static let tooltipBackground = Color(nsColor: .labelColor).opacity(0.92)
     static let tooltipForeground = Color(nsColor: .windowBackgroundColor)
-    static let titleGradient = LinearGradient(
-        colors: [brandBlueDeep, brandBlue],
+    static var titleGradient: LinearGradient {
+        LinearGradient(
+        colors: [accent, accent],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
-    )
+        )
+    }
 }
 
 enum PanelSurfaceMetrics {
@@ -203,16 +215,18 @@ struct ScrollToTopButton: View {
         Button(action: action) {
             Image(systemName: "arrow.up")
                 .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(isHovering ? Color.white : AppTheme.brandBlueDeep)
+                .foregroundStyle(
+                    isHovering ? AppTheme.accentForeground : AppTheme.accent
+                )
                 .frame(width: 34, height: 34)
-                .background(isHovering ? AppTheme.brandBlue : AppTheme.elevatedSurface)
+                .background(isHovering ? AppTheme.accentBackground : AppTheme.elevatedSurface)
                 .clipShape(Circle())
                 .overlay {
                     Circle()
-                        .stroke(isHovering ? AppTheme.brandBlueDeep.opacity(0.45) : AppTheme.border)
+                        .stroke(isHovering ? AppTheme.accent.opacity(0.45) : AppTheme.border)
                 }
                 .shadow(
-                    color: AppTheme.brandBlue.opacity(isHovering ? 0.22 : 0.12),
+                    color: AppTheme.accent.opacity(isHovering ? 0.22 : 0.12),
                     radius: isHovering ? 7 : 4,
                     y: 2
                 )
@@ -360,7 +374,7 @@ struct AppInputSurfaceModifier: ViewModifier {
             .clipShape(.rect(cornerRadius: AppControlMetrics.inputCornerRadius))
             .overlay {
                 RoundedRectangle(cornerRadius: AppControlMetrics.inputCornerRadius)
-                    .stroke(isFocused ? AppTheme.brandBlue : AppTheme.border)
+                    .stroke(isFocused ? AppTheme.accent : AppTheme.border)
             }
     }
 }
@@ -428,7 +442,7 @@ private struct AppActionButtonStyle: ButtonStyle {
         guard isEnabled else { return AppTheme.disabledActionForeground }
         switch appearance {
         case .primary:
-            return .white
+            return AppTheme.accentForeground
         case .secondary:
             return AppTheme.secondaryActionForeground
         }
@@ -438,7 +452,7 @@ private struct AppActionButtonStyle: ButtonStyle {
         guard isEnabled else { return AppTheme.disabledActionFill }
         switch appearance {
         case .primary:
-            return AppTheme.brandBlue
+            return AppTheme.accentBackground
         case .secondary:
             return AppTheme.secondaryActionFill
         }
@@ -448,7 +462,7 @@ private struct AppActionButtonStyle: ButtonStyle {
         guard isEnabled else { return AppTheme.disabledActionBorder }
         switch appearance {
         case .primary:
-            return AppTheme.brandBlueDeep.opacity(0.48)
+            return AppTheme.accent.opacity(0.48)
         case .secondary:
             return .clear
         }
@@ -469,9 +483,11 @@ struct BackNavigationButton: View {
         Button(action: action) {
             Image(systemName: "chevron.left")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color.primary)
+                .foregroundStyle(
+                    Color.primary
+                )
                 .frame(width: 28, height: 28)
-                .background(isHovering ? AppTheme.selectedFill : Color.clear)
+                .background(isHovering ? AppTheme.accentHoverBackground : Color.clear)
                 .clipShape(.rect(cornerRadius: 6))
                 .overlay {
                     RoundedRectangle(cornerRadius: 6)
@@ -536,14 +552,16 @@ struct SheetHeader: View {
             Button(action: closeAction) {
                 Image(systemName: "xmark")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(isCloseHovering ? AppTheme.brandBlueDeep : Color.secondary)
+                    .foregroundStyle(
+                    Color.secondary
+                    )
                     .frame(width: 26, height: 26)
-                    .background(isCloseHovering ? AppTheme.selectedFill : AppTheme.quietFill)
+                    .background(isCloseHovering ? AppTheme.accentHoverBackground : AppTheme.quietFill)
                     .clipShape(Circle())
                     .overlay {
                         Circle()
                             .stroke(
-                                isCloseHovering ? AppTheme.brandBlue.opacity(0.32) : AppTheme.border.opacity(0.72)
+                                isCloseHovering ? AppTheme.accent.opacity(0.32) : AppTheme.border.opacity(0.72)
                             )
                     }
             }
@@ -684,7 +702,7 @@ struct NoteMetadataBadge: View {
         HighlightedText(
             text,
             query: highlightQuery,
-            baseForeground: kind == .title ? .white : AppTheme.brandBlue,
+            baseForeground: kind == .title ? AppTheme.accentForeground : AppTheme.accent,
             matchForeground: AppTheme.searchHighlightForeground
         )
             .font(.system(size: kind == .title ? 11 : 10, weight: kind == .title ? .semibold : .medium))
@@ -696,7 +714,7 @@ struct NoteMetadataBadge: View {
                 if kind == .title {
                     AppTheme.titleGradient
                 } else {
-                    AppTheme.selectedFill
+                    AppTheme.accentHoverBackground
                 }
             }
             .clipShape(.rect(cornerRadius: kind == .title ? 5 : 10))
@@ -963,7 +981,7 @@ private struct MarkdownContentView: View {
     private func blockQuote(_ source: String) -> some View {
         HStack(alignment: .top, spacing: 9) {
             RoundedRectangle(cornerRadius: 1)
-                .fill(AppTheme.brandBlue.opacity(0.65))
+                .fill(AppTheme.accent.opacity(0.65))
                 .frame(width: 3)
 
             Text(NoteContentStyler.markdown(
@@ -996,7 +1014,7 @@ private struct MarkdownContentView: View {
             } label: {
                 Image(systemName: item.isCompleted ? "checkmark.square.fill" : "square")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(item.isCompleted ? AppTheme.brandBlue : Color.secondary)
+                    .foregroundStyle(item.isCompleted ? AppTheme.accent : Color.secondary)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(
@@ -1022,7 +1040,7 @@ private struct MarkdownListView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
                     Text(marker(for: index))
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(AppTheme.brandBlue)
+                        .foregroundStyle(AppTheme.accent)
                         .frame(minWidth: 14, alignment: .trailing)
 
                     Text(NoteContentStyler.markdown(
@@ -1108,6 +1126,7 @@ private struct MarkdownTableView: View {
             highlightQuery: highlightQuery,
             baseFont: .system(size: 12, weight: isHeader ? .semibold : .regular)
         ))
+            .foregroundStyle(isHeader ? AppTheme.accentForeground : Color.primary)
             .textSelection(.enabled)
             .padding(.horizontal, 9)
             .padding(.vertical, 6)
@@ -1118,7 +1137,7 @@ private struct MarkdownTableView: View {
             )
             .background(
                 isHeader
-                    ? AppTheme.selectedFill
+                    ? AppTheme.accentBackground
                     : (isAlternateRow ? Color.primary.opacity(0.025) : Color.clear)
             )
             .overlay(alignment: .trailing) {
@@ -1224,7 +1243,7 @@ enum NoteContentStyler {
             }
 
             if link != nil {
-                result[range].foregroundColor = AppTheme.brandBlue
+                result[range].foregroundColor = AppTheme.accent
                 result[range].underlineStyle = .single
             }
         }
@@ -1240,7 +1259,7 @@ enum NoteContentStyler {
                 let range = jsonStringRange(in: source, startingAt: index)
                 let isKey = nextNonWhitespaceCharacter(in: source, after: range.upperBound) == ":"
                 setForeground(
-                    isKey ? AppTheme.brandBlueDeep : Color(nsColor: .systemGreen),
+                    isKey ? AppTheme.accent : Color(nsColor: .systemGreen),
                     in: range,
                     attributedString: &result
                 )
@@ -1278,7 +1297,7 @@ enum NoteContentStyler {
         for match in NoteContentLink.matches(in: visibleText) {
             guard let range = Range(match.range, in: result) else { continue }
             result[range].link = match.url
-            result[range].foregroundColor = AppTheme.brandBlue
+            result[range].foregroundColor = AppTheme.accent
             result[range].underlineStyle = .single
         }
     }

@@ -74,25 +74,27 @@ struct TagSortRow: View {
     HStack(spacing: 12) {
       Image(systemName: "tag.fill")
         .font(.system(size: 11, weight: .semibold))
-        .foregroundStyle(AppTheme.brandBlue)
+        .foregroundStyle(isDragged ? AppTheme.accentForeground : AppTheme.accent)
 
       Text(tag)
         .font(.system(size: 13, weight: .medium))
-        .foregroundStyle(.primary)
+        .foregroundStyle(isDragged ? AppTheme.accentForeground : .primary)
 
       Spacer()
 
       Image(systemName: "line.3.horizontal")
         .font(.system(size: 13, weight: .medium))
-        .foregroundStyle(.tertiary)
+        .foregroundStyle(
+            isDragged ? AppTheme.accentForeground.opacity(0.76) : Color(nsColor: .tertiaryLabelColor)
+        )
     }
     .padding(.horizontal, AppSpacing.medium)
     .padding(.vertical, 10)
-    .background(isDragged ? AppTheme.selectedFill : AppTheme.elevatedSurface)
+    .background(isDragged ? AppTheme.accentBackground : AppTheme.elevatedSurface)
     .clipShape(.rect(cornerRadius: 7))
     .overlay {
       RoundedRectangle(cornerRadius: 7)
-        .stroke(isDragged ? AppTheme.brandBlue.opacity(0.55) : AppTheme.border)
+        .stroke(isDragged ? AppTheme.accent.opacity(0.55) : AppTheme.border)
     }
     .opacity(isDragged ? 0.82 : 1.0)
     .scaleEffect(isDragged ? 1.015 : 1.0)

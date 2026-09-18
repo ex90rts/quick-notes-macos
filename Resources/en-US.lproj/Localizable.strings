@@ -103,6 +103,7 @@
 "Appearance" = "Appearance";
 "Customize selected appearance settings." = "Customize selected appearance settings.";
 "Menubar Icon" = "Menubar Icon";
+"Accent Color" = "Accent Color";
 "Icon style" = "Icon style";
 "Black & White" = "Black & White";
 "Color" = "Color";
@@ -111,6 +112,18 @@
 "Small" = "Small";
 "Medium" = "Medium";
 "Large" = "Large";
+"Red" = "Red";
+"Orange" = "Orange";
+"Yellow" = "Yellow";
+"Green" = "Green";
+"Mint" = "Mint";
+"Teal" = "Teal";
+"Cyan" = "Cyan";
+"Blue" = "Blue";
+"Indigo" = "Indigo";
+"Purple" = "Purple";
+"Pink" = "Pink";
+"Brown" = "Brown";
 "Code Highlight Theme" = "Code Highlight Theme";
 "Code highlight theme" = "Code highlight theme";
 "Preview code highlight theme" = "Preview code highlight theme";

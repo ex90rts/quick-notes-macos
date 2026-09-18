@@ -19,7 +19,7 @@ struct AboutView: View {
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 120, height: 120)
                         .cornerRadius(20)
-                        .shadow(color: AppTheme.brandBlue.opacity(0.16), radius: 10, x: 0, y: 5)
+                        .shadow(color: AppTheme.accent.opacity(0.16), radius: 10, x: 0, y: 5)
                 } else {
                     Image(systemName: "note.text")
                         .font(.system(size: 60))
@@ -29,7 +29,7 @@ struct AboutView: View {
                             AppTheme.titleGradient
                         )
                         .cornerRadius(20)
-                        .shadow(color: AppTheme.brandBlue.opacity(0.16), radius: 10, x: 0, y: 5)
+                        .shadow(color: AppTheme.accent.opacity(0.16), radius: 10, x: 0, y: 5)
                 }
 
                 Text("Quick Notes")

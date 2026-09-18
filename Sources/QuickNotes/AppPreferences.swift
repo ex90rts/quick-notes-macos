@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import Foundation
 import SwiftUI
@@ -124,6 +125,117 @@ enum MenuBarIconStyle: String, CaseIterable, Identifiable {
     }
 }
 
+enum AppAccentColor: String, CaseIterable, Identifiable {
+    case system
+    case red
+    case orange
+    case yellow
+    case green
+    case mint
+    case teal
+    case cyan
+    case blue
+    case indigo
+    case purple
+    case pink
+    case brown
+
+    private struct RGB {
+        let red: CGFloat
+        let green: CGFloat
+        let blue: CGFloat
+
+        func makeNSColor() -> NSColor {
+            NSColor(
+                calibratedRed: red / 255,
+                green: green / 255,
+                blue: blue / 255,
+                alpha: 1
+            )
+        }
+
+        var relativeLuminance: CGFloat {
+            func linearComponent(_ component: CGFloat) -> CGFloat {
+                let normalized = component / 255
+                return normalized <= 0.04045
+                    ? normalized / 12.92
+                    : pow((normalized + 0.055) / 1.055, 2.4)
+            }
+
+            return 0.2126 * linearComponent(red)
+                + 0.7152 * linearComponent(green)
+                + 0.0722 * linearComponent(blue)
+        }
+    }
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .system: "Automatic"
+        default: rawValue.capitalized
+        }
+    }
+
+    /// Uses macOS's system accent for the default, while custom choices use
+    /// the accessibility-friendly increased-contrast values in each appearance.
+    var color: Color {
+        guard let pair = increasedContrastPair else {
+            return Color(nsColor: .controlAccentColor)
+        }
+
+        let dynamicColor = NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return (isDark ? pair.dark : pair.light).makeNSColor()
+        }
+        return Color(nsColor: dynamicColor)
+    }
+
+    var foregroundColor: Color {
+        guard let pair = increasedContrastPair else {
+            return Color(nsColor: .selectedControlTextColor)
+        }
+
+        let dynamicColor = NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let background = isDark ? pair.dark : pair.light
+            return background.relativeLuminance > 0.38 ? .black : .white
+        }
+        return Color(nsColor: dynamicColor)
+    }
+
+    private var increasedContrastPair: (light: RGB, dark: RGB)? {
+        switch self {
+        case .system:
+            nil
+        case .red:
+            (RGB(red: 233, green: 21, blue: 45), RGB(red: 255, green: 97, blue: 101))
+        case .orange:
+            (RGB(red: 197, green: 83, blue: 0), RGB(red: 255, green: 160, blue: 86))
+        case .yellow:
+            (RGB(red: 161, green: 106, blue: 0), RGB(red: 254, green: 223, blue: 67))
+        case .green:
+            (RGB(red: 0, green: 137, blue: 50), RGB(red: 74, green: 217, blue: 104))
+        case .mint:
+            (RGB(red: 0, green: 133, blue: 117), RGB(red: 84, green: 223, blue: 203))
+        case .teal:
+            (RGB(red: 0, green: 129, blue: 152), RGB(red: 59, green: 221, blue: 236))
+        case .cyan:
+            (RGB(red: 0, green: 126, blue: 174), RGB(red: 109, green: 217, blue: 255))
+        case .blue:
+            (RGB(red: 30, green: 110, blue: 244), RGB(red: 92, green: 184, blue: 255))
+        case .indigo:
+            (RGB(red: 86, green: 74, blue: 222), RGB(red: 167, green: 170, blue: 255))
+        case .purple:
+            (RGB(red: 176, green: 47, blue: 194), RGB(red: 234, green: 141, blue: 255))
+        case .pink:
+            (RGB(red: 231, green: 18, blue: 77), RGB(red: 255, green: 138, blue: 196))
+        case .brown:
+            (RGB(red: 149, green: 109, blue: 81), RGB(red: 219, green: 166, blue: 121))
+        }
+    }
+}
+
 enum PanelSize: String, CaseIterable, Identifiable {
     case small
     case medium
@@ -161,6 +273,7 @@ final class AppPreferences: ObservableObject {
         static let panelSize = "panelSize"
         static let displayLanguage = "displayLanguage"
         static let codeHighlightTheme = "codeHighlightTheme"
+        static let accentColor = "accentColor"
         static let mcpServerEnabled = "mcpServerEnabled"
         static let mcpDeletionEnabled = "mcpDeletionEnabled"
     }
@@ -188,6 +301,12 @@ final class AppPreferences: ObservableObject {
     @Published var codeHighlightTheme: CodeHighlightTheme {
         didSet {
             defaults.set(codeHighlightTheme.rawValue, forKey: Key.codeHighlightTheme)
+        }
+    }
+
+    @Published var accentColor: AppAccentColor {
+        didSet {
+            defaults.set(accentColor.rawValue, forKey: Key.accentColor)
         }
     }
 
@@ -223,12 +342,23 @@ final class AppPreferences: ObservableObject {
         codeHighlightTheme = defaults.string(forKey: Key.codeHighlightTheme)
             .flatMap(CodeHighlightTheme.init(rawValue:))
             ?? .github
+        accentColor = defaults.string(forKey: Key.accentColor)
+            .flatMap(AppAccentColor.init(rawValue:))
+            ?? .system
         mcpServerEnabled = defaults.object(forKey: Key.mcpServerEnabled) as? Bool ?? true
         mcpDeletionEnabled = defaults.object(forKey: Key.mcpDeletionEnabled) as? Bool ?? false
     }
 
     static func isMCPServerEnabled(defaults: UserDefaults = .standard) -> Bool {
         defaults.object(forKey: Key.mcpServerEnabled) as? Bool ?? true
+    }
+
+    nonisolated static func selectedAccentColor(
+        defaults: UserDefaults = .standard
+    ) -> AppAccentColor {
+        defaults.string(forKey: Key.accentColor)
+            .flatMap(AppAccentColor.init(rawValue:))
+            ?? .system
     }
 
     static func isMCPDeletionEnabled(defaults: UserDefaults = .standard) -> Bool {
