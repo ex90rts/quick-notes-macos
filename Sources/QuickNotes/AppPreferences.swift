@@ -166,6 +166,19 @@ enum AppAccentColor: String, CaseIterable, Identifiable {
                 + 0.7152 * linearComponent(green)
                 + 0.0722 * linearComponent(blue)
         }
+
+        static func contrastingForeground(for background: NSColor) -> NSColor {
+            guard let rgbBackground = background.usingColorSpace(.sRGB) else {
+                return .white
+            }
+
+            let color = RGB(
+                red: rgbBackground.redComponent * 255,
+                green: rgbBackground.greenComponent * 255,
+                blue: rgbBackground.blueComponent * 255
+            )
+            return color.relativeLuminance > 0.38 ? .black : .white
+        }
     }
 
     var id: Self { self }
@@ -192,14 +205,18 @@ enum AppAccentColor: String, CaseIterable, Identifiable {
     }
 
     var foregroundColor: Color {
-        guard let pair = increasedContrastPair else {
-            return Color(nsColor: .selectedControlTextColor)
-        }
-
         let dynamicColor = NSColor(name: nil) { appearance in
-            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            let background = isDark ? pair.dark : pair.light
-            return background.relativeLuminance > 0.38 ? .black : .white
+            if let pair = increasedContrastPair {
+                let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                let background = (isDark ? pair.dark : pair.light).makeNSColor()
+                return RGB.contrastingForeground(for: background)
+            }
+
+            var background = NSColor.controlAccentColor
+            appearance.performAsCurrentDrawingAppearance {
+                background = NSColor.controlAccentColor
+            }
+            return RGB.contrastingForeground(for: background)
         }
         return Color(nsColor: dynamicColor)
     }

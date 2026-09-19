@@ -881,6 +881,7 @@ struct NoteRow: View {
     @State private var showEditSheet: Bool = false
     @State private var contentHeight: CGFloat = 0
     @State private var maxHeight: CGFloat = 0
+    @State private var isExpandCollapseHovering = false
     @State private var isHovering = false
     @State private var hoveredAction: HoveredAction?
     @State private var isIdentifierTooltipPresented = false
@@ -1062,17 +1063,9 @@ struct NoteRow: View {
 
             // Show more/less button - only show if content is truncated
             if maxHeight > contentHeight + 0.5 && !note.expanded {
-                Button("Show more") {
-                    onToggleExpand(note)
-                }
-                .buttonStyle(.link)
-                .font(.system(size: 12))
+                expandCollapseButton("Show more")
             } else if note.expanded && maxHeight > 0 {
-                Button("Show less") {
-                    onToggleExpand(note)
-                }
-                .buttonStyle(.link)
-                .font(.system(size: 12))
+                expandCollapseButton("Show less")
             }
         }
         .padding(AppSpacing.medium)
@@ -1152,6 +1145,21 @@ struct NoteRow: View {
         .onDisappear {
             deletionTask?.cancel()
         }
+    }
+
+    private func expandCollapseButton(_ title: String) -> some View {
+        Button(title) {
+            onToggleExpand(note)
+        }
+        .buttonStyle(.plain)
+        .font(.system(size: 12, weight: .medium))
+        .foregroundStyle(AppTheme.accent)
+        .padding(.horizontal, 7)
+        .frame(height: 24)
+        .background(isExpandCollapseHovering ? AppTheme.accentHoverBackground : Color.clear)
+        .clipShape(.rect(cornerRadius: 6))
+        .contentShape(.rect)
+        .onHover { isExpandCollapseHovering = $0 }
     }
 
     @ViewBuilder

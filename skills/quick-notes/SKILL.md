@@ -26,6 +26,8 @@ Do not invent an executable path or pretend that Quick Notes is connected.
 ## Creating and updating notes
 
 - Write note content in Markdown by default and pass `rendering_mode: "markdown"`. Preserve useful headings, lists, links, code fences, and quotations.
+- When Markdown source content includes a level-one heading, use that heading directly as the note title instead of generating an AI summary title. Remove that level-one heading from the saved note body.
+- A note body must never contain a level-one heading. Start its heading hierarchy at level two (`##`) and nest lower levels from there.
 - Content must be meaningful and no longer than 5,000 characters. If the source is longer, make a concise Markdown note that retains the material facts, decisions, action items, and links. Do not silently truncate.
 - Keep an explicitly supplied title. When no title is supplied, infer a compact descriptive title from the content; keep it within 25 characters and avoid generic titles such as “Notes” or “Summary”.
 - Before creating or replacing tags, call `quick_notes_list_tags`. Compare the content with the returned tag names and attach the best one or two exact existing tags. Use no tag when none is a good fit. Do not invent, normalize, or case-adjust a tag value.

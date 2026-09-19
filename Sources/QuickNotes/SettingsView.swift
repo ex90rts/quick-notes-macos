@@ -192,7 +192,7 @@ struct SettingsView: View {
 
                 SettingsDashedDivider()
 
-                SettingsControlRow(title: "Accent Color") {
+                SettingsControlRow(title: "Theme Color") {
                     AccentColorPicker(selection: $preferences.accentColor)
                 }
                 .padding(.vertical, AppSpacing.medium)
@@ -918,6 +918,7 @@ private struct SettingsMenuPicker<Option: Hashable, OptionLabel: View>: View {
     let optionLabel: (Option) -> OptionLabel
     @State private var isHovering = false
     @State private var isPresented = false
+    @State private var hoveredOption: Option?
 
     init(
         selection: Binding<Option>,
@@ -996,12 +997,15 @@ private struct SettingsMenuPicker<Option: Hashable, OptionLabel: View>: View {
                         .padding(.horizontal, 10)
                         .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
                         .background(
-                            selection == option ? AppTheme.accentBackground : Color.clear
+                            selection == option
+                                ? AppTheme.accentBackground
+                                : (hoveredOption == option ? AppTheme.accentHoverBackground : Color.clear)
                         )
                         .clipShape(.rect(cornerRadius: 6))
                         .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
+                    .onHover { hoveredOption = $0 ? option : nil }
                 }
             }
             .padding(6)
@@ -1018,7 +1022,7 @@ private struct AccentColorPicker: View {
             selection: $selection,
             options: AppAccentColor.allCases,
             width: 160,
-            accessibilityLabel: "Accent Color"
+            accessibilityLabel: "Theme Color"
         ) { option in
             HStack(spacing: AppSpacing.small) {
                 Circle()
@@ -1219,7 +1223,6 @@ struct TagSettingsFlowLayout: View {
     @Environment(\.appLanguage) private var appLanguage
     let tags: [String]
     let onTagRemove: (String) -> Void
-    @State private var hoveredTag: String? = nil
     @State private var showDeleteAlert = false
     @State private var selectedTag: String = ""
 
@@ -1239,17 +1242,12 @@ struct TagSettingsFlowLayout: View {
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(
-                                hoveredTag == tag ? Color.red : AppTheme.accent
-                            )
+                            .foregroundStyle(Color.red)
                             .frame(width: 16, height: 16)
                     }
                     .buttonStyle(.plain)
                     .contentShape(Circle())
                     .padding(.trailing, 6)
-                    .onHover { isHovering in
-                        hoveredTag = isHovering ? tag : nil
-                    }
                     .accessibilityLabel(
                         AppLocalization.format(
                             "Delete %@ tag",
