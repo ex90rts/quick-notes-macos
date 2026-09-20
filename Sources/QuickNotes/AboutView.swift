@@ -8,8 +8,8 @@ struct AboutView: View {
         AppSheet(
             title: "About",
             language: language,
-            minWidth: 400,
             minHeight: 320,
+            fixedWidth: AppSheetLayout.compactModalWidth,
             closeAction: { dismiss() }
         ) {
             VStack(spacing: 12) {

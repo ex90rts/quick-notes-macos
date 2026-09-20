@@ -208,7 +208,7 @@ final class QuickNotesMCPService {
             tool(
                 name: "quick_notes_list_notes",
                 title: "List Quick Notes",
-                description: "Read notes from the local Quick Notes library. Omit tags to read all notes; provide one or more tags to return notes carrying any of those tags.",
+                description: "Read notes from the local Quick Notes library, ordered newest first by timestamp. Omit tags to read all notes; provide one or more tags to return notes carrying any of those tags.",
                 inputSchema: [
                     "type": "object",
                     "properties": [
@@ -368,9 +368,10 @@ final class QuickNotesMCPService {
         let limit = try boundedInteger(arguments, key: "limit", defaultValue: 100, range: 1...1_000)
         let offset = try boundedInteger(arguments, key: "offset", defaultValue: 0, range: 0...Int.max)
         let allNotes = try repository.fetchNotes()
-        let matchingNotes = tags.isEmpty ? allNotes : allNotes.filter { note in
+        let matchingNotes = (tags.isEmpty ? allNotes : allNotes.filter { note in
             !Set(note.tags).isDisjoint(with: tags)
-        }
+        })
+        .sorted { $0.timestamp > $1.timestamp }
         let page = Array(matchingNotes.dropFirst(offset).prefix(limit))
         return [
             "total": matchingNotes.count,

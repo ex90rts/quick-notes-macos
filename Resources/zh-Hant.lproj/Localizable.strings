@@ -104,6 +104,7 @@
 "Customize selected appearance settings." = "自訂部分顯示外觀。";
 "Menubar Icon" = "選單列圖示";
 "Theme Color" = "主題色";
+"Interface Theme Color" = "介面主題色";
 "Icon style" = "圖示樣式";
 "Black & White" = "黑白";
 "Color" = "彩色";
@@ -159,8 +160,8 @@
 " Ignored %lld notes with identical title and content." = "忽略 %lld 則標題和內容相同的筆記。";
 "OK" = "好";
 
-"MCP Server" = "MCP 服務";
-"Connect a local Agent to read and manage note data." = "接入本機 Agent 來讀取和管理筆記資料。";
+"Agent Access" = "智能體接入";
+"Connect a local Agent to read and manage note data." = "接入本機智能體來讀取和管理筆記資料。";
 "Enable MCP Server" = "啟用 MCP 服務";
 "When disabled, Agents cannot connect or change your notes." = "關閉後，Agent 無法連線或更改你的筆記。";
 "Allow MCP Delete" = "允許 MCP 刪除";
@@ -177,7 +178,7 @@
 "Saved Quick Notes skill to %@." = "Quick Notes 技能已儲存到 %@。";
 "Could not save Quick Notes skill: %@" = "無法儲存 Quick Notes 技能：%@";
 "Could not open the save dialog." = "無法開啟儲存對話框。";
-"Agent Installation Configuration" = "Agent 安裝設定";
+"Install MCP Server in an Agent" = "在智能體中安裝 MCP 服務";
 "Copy the installation prompt to your Agent, or expand to copy the parameters for manual setup." = "複製安裝提示詞給 Agent 安裝，或展開複製參數手動設定。";
 "Copy Install Prompt" = "拷貝安裝提示詞";
 "Command" = "Command";
@@ -192,3 +193,15 @@
 
 "Version: %@ (%@)" = "版本：%@（%@）";
 "Unknown" = "未知";
+
+"Help" = "說明";
+"View Help" = "查看說明";
+"Help Markdown Document" = "# 快速掌握「快記」的使用方式\n\n快記透過常駐選單列的圖示和彈出面板，解決零散筆記的快速記錄和提取問題；同時也可以方便地在你日常使用的智能體中使用。\n\n## 筆記基本操作\n\n1. **建立筆記** — 按一下麵板右上角的「新增筆記」按鈕，可以在彈出視窗中建立一則新筆記；標題可以留白，只需要輸入筆記內容即可。為了方便組織和篩選筆記，可以關聯標籤；渲染方式預設會自動識別，如有特殊要求，也可以自行選擇。\n2. **從剪貼簿建立** — 麵板頂部「新增筆記」按鈕的右側有一個「貼上」按鈕，按一下後即可直接使用剛剛複製的文字內容快速建立一則筆記。\n3. **篩選筆記** — 筆記列表頂部是篩選列，預設可以依標籤快速篩選；也可以按一下頂部標籤列右側的搜尋按鈕，輸入關鍵字後依筆記標題和內容搜尋筆記。\n4. **修改筆記** — 按一下筆記卡片右上角的鉛筆圖示，可以開啟筆記編輯視窗，修改筆記的標題、內容、標籤或渲染方式。\n5. **釘選筆記** — 有些筆記可能希望永遠顯示在列表頂端，可以按一下筆記卡片右上角的圖釘圖示來釘選或取消釘選某則筆記，最多可以釘選 %lld 則筆記。\n6. **刪除筆記** — 按一下筆記卡片右上角的垃圾桶圖示並再次確認即可刪除筆記；筆記刪除後無法還原，請謹慎操作。\n\n## 設定功能\n\n透過麵板右上角「更多」按鈕的選單項目可以進入設定頁面，依照你的偏好進行功能設定。\n\n- **顯示語言** — 介面預設跟隨系統語言，也可以手動選擇；目前支援 3 種語言。\n- **標籤管理** — 可以建立、刪除標籤，修改標籤排序；標籤刪除後會從相關筆記中移除，原筆記內容不受影響。\n- **外觀設定** — 設定選單列圖示樣式、介面主題色（預設跟隨系統）、麵板大小（預設為中等）、筆記內容程式碼高亮風格等。\n- **智能體接入** — 透過管理 MCP 服務和技能，在你日常使用的智能體中使用快記；下一節將詳細說明。\n- **匯出/匯入** — 透過 Markdown 文件備份筆記資料，或在不同裝置之間移轉筆記資料。\n\n## 在智能體中使用快記\n\n完成一次 MCP 連線設定並安裝技能後，即可方便地在智能體中使用快記。\n\n1. **啟用 MCP 服務** — 在設定中開啟「啟用 MCP 服務」，讓本機智能體可以連接此筆記庫。\n2. **複製安裝提示詞** — 按一下「拷貝安裝提示詞」並傳送給智能體，讓它自行安裝；也可以展開該區域，手動拷貝 Command 和 Arguments 進行設定。\n3. **安裝 Agent Skill** — 按一下「安裝到 Agents」，讓智能體遵循快記的格式、標籤和刪除規則；也可以按一下「另存為」後自行修改和安裝。\n4. **重新啟動智能體** — 新安裝 MCP 服務後，部分智能體可能需要重新啟動；請依需要操作後，再確認快記工具已可使用。\n\n### Skill 的核心功能\n\n- 讀取筆記內容，可以讀取全部或依 ID 及標籤讀取。\n- 建立新的筆記，可自動擷取或摘要標題，並配對標籤。\n- 依 ID 編輯或刪除現有筆記內容；刪除前需要在 MCP 設定中開啟刪除權限。\n- 新增標籤或刪除現有標籤；刪除前需要在 MCP 設定中開啟刪除權限。\n- 透過 AI 解讀最近 100 則筆記，可以整理主題、發現問題、提出建議等。";
+"Quick capture, ready when you need it" = "快捷記錄，隨時取用";
+"Welcome to Quick Notes. Create your first note or quickly explore the essentials." = "歡迎使用「快記」，建立第一則筆記或快速了解基本功能。";
+"Try asking your Agent" = "可以這樣對 Agent 說";
+"Read all notes with the Work tag and organize them by topic." = "讀取 Work 標籤下的所有筆記，並依主題整理。";
+"Create a Quick Note from the following content, generate a title, and match suitable tags: …" = "根據以下內容建立一則快記，自動產生標題並配對合適的標籤：……";
+"Update note #UUID and mark its status as complete." = "修改筆記 #UUID，將狀態更新為已完成。";
+"Create a new tag named Research." = "新增一個名為 Research 的標籤。";
+"Interpret my 100 most recent notes and identify themes, problems, and three next actions." = "解讀我最近 100 則筆記，整理主題、發現問題，並提出三個後續行動建議。";

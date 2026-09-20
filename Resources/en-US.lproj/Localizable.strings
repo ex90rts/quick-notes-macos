@@ -104,6 +104,7 @@
 "Customize selected appearance settings." = "Customize selected appearance settings.";
 "Menubar Icon" = "Menubar Icon";
 "Theme Color" = "Theme Color";
+"Interface Theme Color" = "Interface Theme Color";
 "Icon style" = "Icon style";
 "Black & White" = "Black & White";
 "Color" = "Color";
@@ -159,7 +160,7 @@
 " Ignored %lld notes with identical title and content." = " Ignored %lld notes with identical title and content.";
 "OK" = "OK";
 
-"MCP Server" = "MCP Server";
+"Agent Access" = "Agent Access";
 "Connect a local Agent to read and manage note data." = "Connect a local Agent to read and manage note data.";
 "Enable MCP Server" = "Enable MCP Server";
 "When disabled, Agents cannot connect or change your notes." = "When disabled, Agents cannot connect or change your notes.";
@@ -177,7 +178,7 @@
 "Saved Quick Notes skill to %@." = "Saved Quick Notes skill to %@.";
 "Could not save Quick Notes skill: %@" = "Could not save Quick Notes skill: %@";
 "Could not open the save dialog." = "Could not open the save dialog.";
-"Agent Installation Configuration" = "Agent Installation Configuration";
+"Install MCP Server in an Agent" = "Install MCP Server in an Agent";
 "Copy the installation prompt to your Agent, or expand to copy the parameters for manual setup." = "Copy the installation prompt to your Agent, or expand to copy the parameters for manual setup.";
 "Copy Install Prompt" = "Copy Install Prompt";
 "Command" = "Command";
@@ -192,3 +193,15 @@
 
 "Version: %@ (%@)" = "Version: %@ (%@)";
 "Unknown" = "Unknown";
+
+"Help" = "Help";
+"View Help" = "View Help";
+"Help Markdown Document" = "# Get started with Quick Notes\n\nQuick Notes uses a persistent menu bar icon and popover panel to make capturing and retrieving scattered notes fast; it also works seamlessly in the AI agents you use every day.\n\n## Note basics\n\n1. **Create a note** — Click **Add Note** in the upper-right corner of the panel to create a new note in a separate window. The title is optional; you only need to enter the note content. To organize and filter notes, you can attach tags. Rendering mode is detected automatically by default, and you can choose one yourself when needed.\n2. **Create from the clipboard** — To the right of **Add Note** at the top of the panel is a **Paste** button. Click it to quickly create a note from the text you just copied.\n3. **Filter notes** — The top of the notes list contains the filter bar, where you can quickly filter by tag. You can also click the search button on the right of the tag bar and enter keywords to search note titles and content.\n4. **Edit a note** — Click the pencil icon in the upper-right corner of a note card to open its editor and update its title, content, tags, or rendering mode.\n5. **Pin a note** — If you want a note to stay at the top of the list, click the pin icon in the upper-right corner of its card to pin or unpin it. You can pin up to %lld notes.\n6. **Delete a note** — Click the trash icon in the upper-right corner of a note card and confirm a second time to delete it. Deleted notes cannot be recovered, so proceed carefully.\n\n## Settings\n\nOpen Settings from the menu under the **More** button in the upper-right corner of the panel, then tailor the app to your preferences.\n\n- **Display Language** — The interface follows the system language by default, and you can choose manually. Three languages are currently supported.\n- **Tag Management** — Create, delete, and reorder tags. Deleting a tag removes it from related notes without affecting the note content.\n- **Appearance** — Configure the menu bar icon style, interface theme color (system by default), panel size (medium by default), and code-highlighting style for note content.\n- **Agent Access** — Manage the MCP server and Skill to use Quick Notes from the agents you use every day; the next section explains this in detail.\n- **Export / Import** — Back up note data to a Markdown document or move it between devices.\n\n## Use Quick Notes with an agent\n\nAfter configuring the MCP connection once and installing the Skill, you can conveniently use Quick Notes from an agent.\n\n1. **Enable MCP Server** — Turn on **Enable MCP Server** in Settings so a local agent can connect to this note library.\n2. **Copy the installation prompt** — Click **Copy Install Prompt** and send it to an agent so it can install itself. Or expand this area and manually copy the Command and Arguments to configure it.\n3. **Install the Agent Skill** — Click **Install for Agents** so the agent follows Quick Notes formatting, tagging, and deletion rules. You can also choose **Save As**, edit the Skill yourself, and install it manually.\n4. **Restart the agent** — After MCP is newly installed, some agents may need a restart. Do that if needed, then confirm that Quick Notes tools are available.\n\n### What the Skill can do\n\n- Read all notes, or locate a note by ID or tag.\n- Create notes with an automatically extracted or summarized title and matching tags.\n- Edit or delete a note by ID. Deletion requires permission in MCP settings.\n- Add or delete tags. Deletion requires permission in MCP settings.\n- Use AI to interpret the 100 most recent notes, extract themes, identify problems, and suggest next steps.";
+"Quick capture, ready when you need it" = "Quick capture, ready when you need it";
+"Welcome to Quick Notes. Create your first note or quickly explore the essentials." = "Welcome to Quick Notes. Create your first note or quickly explore the essentials.";
+"Try asking your Agent" = "Try asking your Agent";
+"Read all notes with the Work tag and organize them by topic." = "Read all notes with the Work tag and organize them by topic.";
+"Create a Quick Note from the following content, generate a title, and match suitable tags: …" = "Create a Quick Note from the following content, generate a title, and match suitable tags: …";
+"Update note #UUID and mark its status as complete." = "Update note #UUID and mark its status as complete.";
+"Create a new tag named Research." = "Create a new tag named Research.";
+"Interpret my 100 most recent notes and identify themes, problems, and three next actions." = "Interpret my 100 most recent notes and identify themes, problems, and three next actions.";

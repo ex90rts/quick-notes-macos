@@ -192,7 +192,7 @@ struct SettingsView: View {
 
                 SettingsDashedDivider()
 
-                SettingsControlRow(title: "Theme Color") {
+                SettingsControlRow(title: "Interface Theme Color") {
                     AccentColorPicker(selection: $preferences.accentColor)
                 }
                 .padding(.vertical, AppSpacing.medium)
@@ -311,7 +311,7 @@ struct SettingsView: View {
 
     private var mcpSection: some View {
         SettingsSection(
-            title: "MCP Server",
+            title: "Agent Access",
             systemImage: "cpu",
             description: "Connect a local Agent to read and manage note data."
         ) {
@@ -348,7 +348,7 @@ struct SettingsView: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 3) {
                             HStack(spacing: AppSpacing.small) {
-                                Text("Agent Installation Configuration")
+                                Text("Install MCP Server in an Agent")
                                     .font(.system(size: 13, weight: .medium))
                                     .foregroundStyle(.primary)
 
@@ -364,7 +364,7 @@ struct SettingsView: View {
                         .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Agent Installation Configuration")
+                    .accessibilityLabel("Install MCP Server in an Agent")
                     .accessibilityValue(isMCPConfigurationExpanded ? "Expanded" : "Collapsed")
 
                     Spacer()
@@ -1022,7 +1022,7 @@ private struct AccentColorPicker: View {
             selection: $selection,
             options: AppAccentColor.allCases,
             width: 160,
-            accessibilityLabel: "Theme Color"
+            accessibilityLabel: "Interface Theme Color"
         ) { option in
             HStack(spacing: AppSpacing.small) {
                 Circle()
@@ -1225,6 +1225,7 @@ struct TagSettingsFlowLayout: View {
     let onTagRemove: (String) -> Void
     @State private var showDeleteAlert = false
     @State private var selectedTag: String = ""
+    @State private var hoveredDeleteTag: String?
 
     var body: some View {
         FlowLayout(spacing: 8) {
@@ -1242,11 +1243,14 @@ struct TagSettingsFlowLayout: View {
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(Color.red)
+                            .foregroundStyle(hoveredDeleteTag == tag ? Color.red : Color.secondary)
                             .frame(width: 16, height: 16)
                     }
                     .buttonStyle(.plain)
                     .contentShape(Circle())
+                    .onHover { isHovering in
+                        hoveredDeleteTag = isHovering ? tag : nil
+                    }
                     .padding(.trailing, 6)
                     .accessibilityLabel(
                         AppLocalization.format(

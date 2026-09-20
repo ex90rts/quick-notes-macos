@@ -104,6 +104,7 @@
 "Customize selected appearance settings." = "自定义部分显示外观。";
 "Menubar Icon" = "菜单栏图标";
 "Theme Color" = "主题色";
+"Interface Theme Color" = "界面主题色";
 "Icon style" = "图标样式";
 "Black & White" = "黑白";
 "Color" = "彩色";
@@ -159,8 +160,8 @@
 " Ignored %lld notes with identical title and content." = "忽略 %lld 条标题和内容相同的笔记。";
 "OK" = "好";
 
-"MCP Server" = "MCP 服务";
-"Connect a local Agent to read and manage note data." = "接入本地 Agent 来读取和管理笔记数据。";
+"Agent Access" = "智能体接入";
+"Connect a local Agent to read and manage note data." = "接入本地智能体来读取和管理笔记数据。";
 "Enable MCP Server" = "启用 MCP 服务";
 "When disabled, Agents cannot connect or change your notes." = "关闭后，Agent 无法连接或更改你的笔记。";
 "Allow MCP Delete" = "允许 MCP 删除";
@@ -177,7 +178,7 @@
 "Saved Quick Notes skill to %@." = "Quick Notes 技能已保存到 %@。";
 "Could not save Quick Notes skill: %@" = "无法保存 Quick Notes 技能：%@";
 "Could not open the save dialog." = "无法打开保存对话框。";
-"Agent Installation Configuration" = "Agent 安装配置";
+"Install MCP Server in an Agent" = "在智能体中安装 MCP 服务";
 "Copy the installation prompt to your Agent, or expand to copy the parameters for manual setup." = "复制安装提示词给 Agent 安装，或展开复制参数手动配置。";
 "Copy Install Prompt" = "复制安装提示词";
 "Command" = "Command";
@@ -192,3 +193,15 @@
 
 "Version: %@ (%@)" = "版本：%@（%@）";
 "Unknown" = "未知";
+
+"Help" = "帮助";
+"View Help" = "查看帮助";
+"Help Markdown Document" = "# 快速掌握「快记」的使用方法\n\n快记通过常驻菜单栏的图标和弹出面板，解决零散笔记的快速记录和提取问题；同时也可以方便地在你日常使用的智能体中使用。\n\n## 笔记基础操作\n\n1. **创建笔记** — 点击面板顶部右侧的“添加笔记”按钮，可以在弹出窗口中创建一条新的笔记；标题可以留空，你只需要输入笔记内容即可。为了方便组织和筛选笔记，可以关联标签；渲染方式默认会自动识别，如果有特殊要求，也可以自行选择。\n2. **粘贴创建** — 在面板顶部“添加笔记”按钮的右侧有一个“粘贴”按钮，点击后能够直接使用刚刚复制的文本内容快速新建一条笔记。\n3. **筛选笔记** — 笔记列表顶部是筛选栏，默认可以根据标签快速筛选；也可以点击顶部标签栏右侧的搜索按钮，输入关键词后根据笔记标题和内容搜索笔记。\n4. **修改笔记** — 点击笔记卡片右上角的铅笔图标，可以打开笔记编辑窗口，修改笔记的标题、内容、标签或渲染方式。\n5. **置顶笔记** — 有一些笔记可能希望永远显示在列表顶部，可以通过点击笔记卡片右上角的图钉图标置顶或取消置顶某条笔记，最多可以置顶 %lld 条笔记。\n6. **删除笔记** — 点击笔记卡片右上角的垃圾桶图标并二次确认可以删除笔记；笔记删除后无法恢复，请谨慎操作。\n\n## 设置功能\n\n通过面板右上角“更多”按钮的菜单项可以进入设置页面，按你的偏好进行功能设置。\n\n- **显示语言** — 调整界面显示语言，默认跟随系统设置，也可以手动选择；目前支持 3 种语言。\n- **标签管理** — 可以创建、删除标签，修改标签排序；标签删除后将会从相关笔记中移除，原笔记内容不受影响。\n- **外观设置** — 配置菜单栏图标样式、界面主题色（默认跟随系统）、面板大小（默认为中等）、笔记内容代码高亮风格等。\n- **智能体接入** — 通过管理 MCP 服务和技能，在你日常使用的智能体中使用快记；下一节将详细说明。\n- **导出/导入** — 通过 Markdown 文档备份笔记数据，或在不同设备之间迁移笔记数据。\n\n## 在智能体中使用快记\n\n完成一次 MCP 连接配置并安装技能后，即可方便地在智能体中使用快记。\n\n1. **启用 MCP 服务** — 在设置中开启“启用 MCP 服务”，让本地智能体可以连接此笔记库。\n2. **复制安装提示词** — 点击“复制安装提示词”并发送给智能体，让它自行安装；也可以展开该区域，手动复制 Command 和 Arguments 进行配置。\n3. **安装 Agent Skill** — 点击“安装到 Agents”，让智能体遵循快记的格式、标签和删除规则；也可以点击“另存为”后自行修改和安装。\n4. **重启智能体** — 新安装 MCP 服务后，部分智能体可能需要重启；请根据需要操作后，再确认快记工具已经可用。\n\n### Skill 的核心功能\n\n- 读取笔记内容，可以读取全部或按 ID 及标签读取。\n- 创建新的笔记，可自动提取或总结标题，匹配标签。\n- 按 ID 编辑或删除现有的笔记内容，删除需要在 MCP 配置中开启删除权限。\n- 新增标签或删除现有标签，删除需要在 MCP 配置中开启删除权限。\n- 通过 AI 解读最近 100 条笔记，可以提炼主题、发现问题、提出建议等。";
+"Quick capture, ready when you need it" = "快捷记录，随时提取";
+"Welcome to Quick Notes. Create your first note or quickly explore the essentials." = "欢迎使用「快记」，创建第一条笔记或快速了解基本功能。";
+"Try asking your Agent" = "可以这样对 Agent 说";
+"Read all notes with the Work tag and organize them by topic." = "快记：读取 Work 标签下的所有笔记，并按主题整理。";
+"Create a Quick Note from the following content, generate a title, and match suitable tags: …" = "快记：根据以下内容创建一条快记，自动生成标题并匹配合适的标签：……";
+"Update note #UUID and mark its status as complete." = "快记：修改笔记 #UUID，将状态更新为已完成。";
+"Create a new tag named Research." = "快记：新增一个名为 Research 的标签。";
+"Interpret my 100 most recent notes and identify themes, problems, and three next actions." = "快记：解读我最近 100 条笔记，提炼主题、发现问题，并给出三个行动建议。";

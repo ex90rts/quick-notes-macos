@@ -59,6 +59,8 @@ struct QuickNotesTests {
         #expect(initialPreferences.mcpServerEnabled)
         #expect(!initialPreferences.mcpDeletionEnabled)
         #expect(PanelSize.small.contentSize == CGSize(width: 520, height: 600))
+        #expect(AppSheetLayout.width(for: .small) == 468)
+        #expect(AppSheetLayout.width(for: .small, fixedWidth: AppSheetLayout.compactModalWidth) == 460)
 
         initialPreferences.menuBarIconStyle = .monochrome
         initialPreferences.panelSize = .large
@@ -79,6 +81,8 @@ struct QuickNotesTests {
         #expect(restoredPreferences.mcpDeletionEnabled)
         #expect(PanelSize.medium.contentSize == CGSize(width: 620, height: 720))
         #expect(restoredPreferences.panelSize.contentSize == CGSize(width: 720, height: 840))
+        #expect(AppSheetLayout.width(for: .medium) == 558)
+        #expect(AppSheetLayout.width(for: .large) == 648)
         #expect(AppAccentColor.allCases.count == 13)
     }
 
@@ -153,6 +157,24 @@ struct QuickNotesTests {
         _ = try QuickNotesAgentSkillInstaller.install(from: sourceURL, to: destinationURL)
         #expect(try String(contentsOf: installedURL.appendingPathComponent("SKILL.md"), encoding: .utf8)
             .contains("description: Updated test skill"))
+    }
+
+    @Test("Bundled Agent skill supports evidence-based AI insights")
+    func bundledAgentSkillAIInsights() throws {
+        let projectRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let skillURL = projectRoot
+            .appendingPathComponent("skills")
+            .appendingPathComponent("quick-notes")
+            .appendingPathComponent("SKILL.md")
+        let markdown = try String(contentsOf: skillURL, encoding: .utf8)
+
+        #expect(markdown.contains("对我的 快记 笔记进行 AI 分析"))
+        #expect(markdown.contains("quick_notes_list_notes"))
+        #expect(markdown.contains("limit: 100"))
+        #expect(markdown.contains("do not create, update, tag, or delete notes"))
     }
 
     @Test("Note identifiers use canonical lowercase UUID text")
@@ -338,6 +360,22 @@ struct QuickNotesTests {
         )
     }
 
+    @Test("Help navigation enters the help page and returns to notes")
+    @MainActor
+    func helpNavigation() throws {
+        let viewModel = try NotesViewModel(
+            repository: makeRepository(),
+            clipboardRepository: makeClipboardRepository(),
+            monitorsClipboard: false
+        )
+
+        viewModel.navigateToHelp()
+        #expect(viewModel.currentView == .help)
+
+        viewModel.navigateToNotesList()
+        #expect(viewModel.currentView == .notesList)
+    }
+
     @Test("App sheet keeps its explicitly supplied display language")
     @MainActor
     func appSheetLanguageContext() {
@@ -382,6 +420,11 @@ struct QuickNotesTests {
         #expect(simplifiedChinese["Display Language"] == "显示语言")
         #expect(traditionalChinese["Display Language"] == "顯示語言")
         #expect(english["Display Language"] == "Display Language")
+        #expect(simplifiedChinese["Agent Access"] == "智能体接入")
+        #expect(traditionalChinese["Agent Access"] == "智能體接入")
+        #expect(simplifiedChinese["Install MCP Server in an Agent"] == "在智能体中安装 MCP 服务")
+        #expect(traditionalChinese["Install MCP Server in an Agent"] == "在智能體中安裝 MCP 服務")
+        #expect(simplifiedChinese["Connect a local Agent to read and manage note data."] == "接入本地智能体来读取和管理笔记数据。")
         #expect(simplifiedChinese["Quick Notes"] == "快记")
         #expect(traditionalChinese["Quick Notes"] == "快记")
         #expect(english["Quick Notes"] == "Quick Notes")
@@ -396,8 +439,14 @@ struct QuickNotesTests {
         #expect(traditionalChinese["Copy ID for Agent Use"] == "複製 ID 供 Agent 使用")
         #expect(simplifiedChinese["Customize selected appearance settings."] == "自定义部分显示外观。")
         #expect(traditionalChinese["Customize selected appearance settings."] == "自訂部分顯示外觀。")
+        #expect(english["Help Markdown Document"]?.hasPrefix("# Get started with Quick Notes") == true)
+        #expect(simplifiedChinese["Help Markdown Document"]?.contains("## 笔记基础操作") == true)
+        #expect(traditionalChinese["Help Markdown Document"]?.contains("## 筆記基本操作") == true)
 
         let removedHelpKeys = [
+            "Everything you need to use Quick Notes",
+            "Tags organize notes and make content easier to filter. Manage tags from Settings.",
+            "Read all notes, or locate note content by ID or tag.",
             "Choose the menu bar icon style.",
             "Adjust the panel size.",
             "Code highlighting color scheme for code in note content.",
@@ -2085,6 +2134,7 @@ private enum CountingRepositoryError: Error {
 @MainActor
 private struct AddNoteFocusTestHost: View {
     @ObservedObject var viewModel: NotesViewModel
+    @StateObject private var preferences = AppPreferences()
     @State private var isSheetPresented = false
 
     var body: some View {
@@ -2093,6 +2143,7 @@ private struct AddNoteFocusTestHost: View {
             .sheet(isPresented: $isSheetPresented) {
                 AddNoteView(language: .englishUS)
                     .environmentObject(viewModel)
+                    .environmentObject(preferences)
             }
             .onAppear {
                 isSheetPresented = true

@@ -190,28 +190,21 @@ enum AppAccentColor: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Uses macOS's system accent for the default, while custom choices use
-    /// the accessibility-friendly increased-contrast values in each appearance.
+    /// Uses macOS's system accent for the default. Custom choices use the
+    /// increased-contrast light values consistently in every appearance.
     var color: Color {
-        guard let pair = increasedContrastPair else {
+        guard let rgb = increasedContrastColor else {
             return Color(nsColor: .controlAccentColor)
         }
-
-        let dynamicColor = NSColor(name: nil) { appearance in
-            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            return (isDark ? pair.dark : pair.light).makeNSColor()
-        }
-        return Color(nsColor: dynamicColor)
+        return Color(nsColor: rgb.makeNSColor())
     }
 
     var foregroundColor: Color {
-        let dynamicColor = NSColor(name: nil) { appearance in
-            if let pair = increasedContrastPair {
-                let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                let background = (isDark ? pair.dark : pair.light).makeNSColor()
-                return RGB.contrastingForeground(for: background)
-            }
+        if let rgb = increasedContrastColor {
+            return Color(nsColor: RGB.contrastingForeground(for: rgb.makeNSColor()))
+        }
 
+        let dynamicColor = NSColor(name: nil) { appearance in
             var background = NSColor.controlAccentColor
             appearance.performAsCurrentDrawingAppearance {
                 background = NSColor.controlAccentColor
@@ -221,34 +214,34 @@ enum AppAccentColor: String, CaseIterable, Identifiable {
         return Color(nsColor: dynamicColor)
     }
 
-    private var increasedContrastPair: (light: RGB, dark: RGB)? {
+    private var increasedContrastColor: RGB? {
         switch self {
         case .system:
             nil
         case .red:
-            (RGB(red: 233, green: 21, blue: 45), RGB(red: 255, green: 97, blue: 101))
+            RGB(red: 233, green: 21, blue: 45)
         case .orange:
-            (RGB(red: 197, green: 83, blue: 0), RGB(red: 255, green: 160, blue: 86))
+            RGB(red: 197, green: 83, blue: 0)
         case .yellow:
-            (RGB(red: 161, green: 106, blue: 0), RGB(red: 254, green: 223, blue: 67))
+            RGB(red: 161, green: 106, blue: 0)
         case .green:
-            (RGB(red: 0, green: 137, blue: 50), RGB(red: 74, green: 217, blue: 104))
+            RGB(red: 0, green: 137, blue: 50)
         case .mint:
-            (RGB(red: 0, green: 133, blue: 117), RGB(red: 84, green: 223, blue: 203))
+            RGB(red: 0, green: 133, blue: 117)
         case .teal:
-            (RGB(red: 0, green: 129, blue: 152), RGB(red: 59, green: 221, blue: 236))
+            RGB(red: 0, green: 129, blue: 152)
         case .cyan:
-            (RGB(red: 0, green: 126, blue: 174), RGB(red: 109, green: 217, blue: 255))
+            RGB(red: 0, green: 126, blue: 174)
         case .blue:
-            (RGB(red: 30, green: 110, blue: 244), RGB(red: 92, green: 184, blue: 255))
+            RGB(red: 30, green: 110, blue: 244)
         case .indigo:
-            (RGB(red: 86, green: 74, blue: 222), RGB(red: 167, green: 170, blue: 255))
+            RGB(red: 86, green: 74, blue: 222)
         case .purple:
-            (RGB(red: 176, green: 47, blue: 194), RGB(red: 234, green: 141, blue: 255))
+            RGB(red: 176, green: 47, blue: 194)
         case .pink:
-            (RGB(red: 231, green: 18, blue: 77), RGB(red: 255, green: 138, blue: 196))
+            RGB(red: 231, green: 18, blue: 77)
         case .brown:
-            (RGB(red: 149, green: 109, blue: 81), RGB(red: 219, green: 166, blue: 121))
+            RGB(red: 149, green: 109, blue: 81)
         }
     }
 }

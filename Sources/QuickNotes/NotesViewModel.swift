@@ -41,10 +41,11 @@ final class NotesViewModel: ObservableObject {
     @Published var currentView: ViewState = .notesList
     @Published var clipboardData: [ClipboardItem] = []
 
-    enum ViewState {
+    enum ViewState: Equatable {
         case notesList
         case clipboardData
         case settings
+        case help
     }
     @Published var maxClipboardNotes: Int = 100 {
         didSet {
@@ -193,6 +194,10 @@ final class NotesViewModel: ObservableObject {
 
     func copyNoteID(_ note: Note) {
         copyToPasteboard(NoteIdentifier.string(for: note))
+    }
+
+    func copyHelpPrompt(_ prompt: String) {
+        copyToPasteboard(prompt)
     }
 
     func canTogglePin(for note: Note) -> Bool {
@@ -363,6 +368,10 @@ final class NotesViewModel: ObservableObject {
 
     func navigateToSettings() {
         currentView = .settings
+    }
+
+    func navigateToHelp() {
+        currentView = .help
     }
 
     func setPanelPresented(_ isPresented: Bool) {

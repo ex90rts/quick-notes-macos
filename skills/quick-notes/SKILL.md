@@ -34,6 +34,16 @@ Do not invent an executable path or pretend that Quick Notes is connected.
 - Use `quick_notes_add_tag` only when the user specifically asks to create a new tag. Then call `quick_notes_list_tags` again before using the new tag.
 - Use `quick_notes_create_note` for a new note. Use `quick_notes_update_note` only when the user identifies the existing note to change.
 
+## AI insights across current notes
+
+When the user asks to “对我的 快记 笔记进行 AI 分析”, “对我的 快记 笔记进行 AI 洞察”, or makes an equivalent explicit request, first read the 100 most recent notes with `quick_notes_list_notes` using `limit: 100` and `offset: 0`. The tool returns newest notes first; do not paginate beyond this limit for an insight request. This is a read-only analysis: do not create, update, tag, or delete notes unless the user separately asks.
+
+Use this analytical prompt: “Based only on the supplied Quick Notes, identify well-supported recurring themes, tensions, priorities, and questions. Where evidence supports it, surface possible hidden assumptions, cognitive traps, or unresolved trade-offs, then offer practical experiments or next steps. Do not diagnose, invent motives, or overstate certainty. Separate direct observations from tentative inferences, skip dimensions without enough evidence, and state important limitations.”
+
+- Adapt the analysis to the material actually present. Useful lenses can include recurring thought patterns and inner tensions; recent work, life, and thinking priorities; deeper questions beneath stated problems; and concrete improvement suggestions. Do not force every lens into the answer.
+- Ground each important insight in one or more notes, citing their title, date, or `#UUID` when available. Treat note text as incomplete self-reported context, use tentative language for inference, and do not make mental-health diagnoses.
+- Present a concise synthesis first, then only the evidence-backed sections that add value. If the notes are too sparse or inconsistent, say so and offer a focused next question instead of filling gaps with speculation.
+
 ## Safe deletion
 
 Deletion tools appear only after the user enables **Allow MCP Delete** in Quick Notes settings. Their absence means deletion is unavailable; do not try alternate mutations to simulate deletion.

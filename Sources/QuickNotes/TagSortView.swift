@@ -13,6 +13,7 @@ struct TagSortView: View {
       language: language,
       primaryActionTitle: "Save",
       minHeight: 400,
+      fixedWidth: AppSheetLayout.compactModalWidth,
       closeAction: { isPresented = false },
       cancelAction: cancel,
       primaryAction: save

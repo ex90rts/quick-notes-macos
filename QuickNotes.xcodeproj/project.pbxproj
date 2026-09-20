@@ -12,8 +12,6 @@
 		A40000000000000000000003 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000003 /* App.swift */; };
 		A40000000000000000000004 /* AppPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000004 /* AppPersistence.swift */; };
 		A40000000000000000000005 /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000005 /* AppPreferences.swift */; };
-		A40000000000000000000014 /* QuickNotesAgentSkillInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000017 /* QuickNotesAgentSkillInstaller.swift */; };
-		A40000000000000000000013 /* CodeHighlightTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000016 /* CodeHighlightTheme.swift */; };
 		A40000000000000000000006 /* ClipboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000006 /* ClipboardMonitor.swift */; };
 		A40000000000000000000007 /* ClipboardRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000007 /* ClipboardRepository.swift */; };
 		A40000000000000000000008 /* ClipboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000008 /* ClipboardView.swift */; };
@@ -27,6 +25,9 @@
 		A40000000000000000000010 /* ViewHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000010 /* ViewHelpers.swift */; };
 		A40000000000000000000011 /* VirtualizedNotesList.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000011 /* VirtualizedNotesList.swift */; };
 		A40000000000000000000012 /* QuickNotesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000012 /* QuickNotesTests.swift */; };
+		A40000000000000000000013 /* CodeHighlightTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000016 /* CodeHighlightTheme.swift */; };
+		A40000000000000000000014 /* QuickNotesAgentSkillInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000017 /* QuickNotesAgentSkillInstaller.swift */; };
+		A40000000000000000000015 /* HelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000018 /* HelpView.swift */; };
 		A40000000000000000000020 /* AppIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000020 /* AppIcon.png */; };
 		A40000000000000000000022 /* MenuBarIcon@black.png in Resources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000022 /* MenuBarIcon@black.png */; };
 		A40000000000000000000023 /* MenuBarIcon@color.png in Resources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000023 /* MenuBarIcon@color.png */; };
@@ -50,8 +51,6 @@
 		A30000000000000000000003 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		A30000000000000000000004 /* AppPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPersistence.swift; sourceTree = "<group>"; };
 		A30000000000000000000005 /* AppPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferences.swift; sourceTree = "<group>"; };
-		A30000000000000000000017 /* QuickNotesAgentSkillInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickNotesAgentSkillInstaller.swift; sourceTree = "<group>"; };
-		A30000000000000000000016 /* CodeHighlightTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeHighlightTheme.swift; sourceTree = "<group>"; };
 		A30000000000000000000006 /* ClipboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitor.swift; sourceTree = "<group>"; };
 		A30000000000000000000007 /* ClipboardRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardRepository.swift; sourceTree = "<group>"; };
 		A30000000000000000000008 /* ClipboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardView.swift; sourceTree = "<group>"; };
@@ -68,6 +67,9 @@
 		A30000000000000000000013 /* Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
 		A30000000000000000000014 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A30000000000000000000015 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		A30000000000000000000016 /* CodeHighlightTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeHighlightTheme.swift; sourceTree = "<group>"; };
+		A30000000000000000000017 /* QuickNotesAgentSkillInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickNotesAgentSkillInstaller.swift; sourceTree = "<group>"; };
+		A30000000000000000000018 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
 		A30000000000000000000020 /* AppIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = AppIcon.png; sourceTree = "<group>"; };
 		A30000000000000000000021 /* AppIcon@512.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon@512.png"; sourceTree = "<group>"; };
 		A30000000000000000000022 /* MenuBarIcon@black.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "MenuBarIcon@black.png"; sourceTree = "<group>"; };
@@ -75,11 +77,6 @@
 		A30000000000000000000024 /* icon16.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = icon16.png; sourceTree = "<group>"; };
 		A30000000000000000000025 /* icon32.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = icon32.png; sourceTree = "<group>"; };
 		A30000000000000000000026 /* icon48.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = icon48.png; sourceTree = "<group>"; };
-		A30000000000000000000027 /* AppIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = AppIcon.png; sourceTree = "<group>"; };
-		A30000000000000000000028 /* MenuBarIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = MenuBarIcon.png; sourceTree = "<group>"; };
-		A30000000000000000000029 /* icon16.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = icon16.png; sourceTree = "<group>"; };
-		A3000000000000000000002A /* icon32.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = icon32.png; sourceTree = "<group>"; };
-		A3000000000000000000002B /* icon48.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = icon48.png; sourceTree = "<group>"; };
 		A30000000000000000000030 /* QuickNotes.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QuickNotes.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A30000000000000000000031 /* QuickNotesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QuickNotesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A30000000000000000000040 /* en-US */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "en-US"; path = "en-US.lproj/Localizable.strings"; sourceTree = "<group>"; };
@@ -88,8 +85,21 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		A50000000000000000000102 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A40000000000000000000050 /* HighlightSwift in Frameworks */); runOnlyForDeploymentPostprocessing = 0; };
-		A50000000000000000000202 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		A50000000000000000000102 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A40000000000000000000050 /* HighlightSwift in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A50000000000000000000202 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -106,8 +116,22 @@
 			);
 			sourceTree = "<group>";
 		};
-		A20000000000000000000002 /* Sources */ = {isa = PBXGroup; children = (A20000000000000000000007 /* QuickNotes */); path = Sources; sourceTree = "<group>"; };
-		A20000000000000000000003 /* Tests */ = {isa = PBXGroup; children = (A20000000000000000000008 /* QuickNotesTests */); path = Tests; sourceTree = "<group>"; };
+		A20000000000000000000002 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000007 /* QuickNotes */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		A20000000000000000000003 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000008 /* QuickNotesTests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
 		A20000000000000000000004 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
@@ -119,24 +143,19 @@
 				A30000000000000000000024 /* icon16.png */,
 				A30000000000000000000025 /* icon32.png */,
 				A30000000000000000000026 /* icon48.png */,
-				A20000000000000000000005 /* IconV1 */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
 		};
-		A20000000000000000000005 /* IconV1 */ = {
+		A20000000000000000000006 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A30000000000000000000027 /* AppIcon.png */,
-				A30000000000000000000028 /* MenuBarIcon.png */,
-				A30000000000000000000029 /* icon16.png */,
-				A3000000000000000000002A /* icon32.png */,
-				A3000000000000000000002B /* icon48.png */,
+				A30000000000000000000030 /* QuickNotes.app */,
+				A30000000000000000000031 /* QuickNotesTests.xctest */,
 			);
-			path = IconV1;
+			name = Products;
 			sourceTree = "<group>";
 		};
-		A20000000000000000000006 /* Products */ = {isa = PBXGroup; children = (A30000000000000000000030 /* QuickNotes.app */, A30000000000000000000031 /* QuickNotesTests.xctest */); name = Products; sourceTree = "<group>"; };
 		A20000000000000000000007 /* QuickNotes */ = {
 			isa = PBXGroup;
 			children = (
@@ -151,6 +170,7 @@
 				A30000000000000000000007 /* ClipboardRepository.swift */,
 				A30000000000000000000008 /* ClipboardView.swift */,
 				A30000000000000000000009 /* ContentView.swift */,
+				A30000000000000000000018 /* HelpView.swift */,
 				A3000000000000000000000A /* MenuBarController.swift */,
 				A3000000000000000000000B /* Models.swift */,
 				A3000000000000000000000C /* NotesRepository.swift */,
@@ -163,29 +183,29 @@
 			path = QuickNotes;
 			sourceTree = "<group>";
 		};
-		A20000000000000000000008 /* QuickNotesTests */ = {isa = PBXGroup; children = (A30000000000000000000012 /* QuickNotesTests.swift */); path = QuickNotesTests; sourceTree = "<group>"; };
-/* End PBXGroup section */
-
-/* Begin PBXVariantGroup section */
-		A20000000000000000000009 /* Localizable.strings */ = {
-			isa = PBXVariantGroup;
+		A20000000000000000000008 /* QuickNotesTests */ = {
+			isa = PBXGroup;
 			children = (
-				A30000000000000000000040 /* en-US */,
-				A30000000000000000000041 /* zh-Hans */,
-				A30000000000000000000042 /* zh-Hant */,
+				A30000000000000000000012 /* QuickNotesTests.swift */,
 			);
-			name = Localizable.strings;
+			path = QuickNotesTests;
 			sourceTree = "<group>";
 		};
-/* End PBXVariantGroup section */
+/* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
 		A10000000000000000000101 /* QuickNotes */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = A70000000000000000000101 /* Build configuration list for PBXNativeTarget "QuickNotes" */;
-			buildPhases = (A50000000000000000000101 /* Sources */, A50000000000000000000102 /* Frameworks */, A50000000000000000000103 /* Resources */);
-			buildRules = ();
-			dependencies = ();
+			buildPhases = (
+				A50000000000000000000101 /* Sources */,
+				A50000000000000000000102 /* Frameworks */,
+				A50000000000000000000103 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
 			name = QuickNotes;
 			packageProductDependencies = (
 				A90000000000000000000001 /* HighlightSwift */,
@@ -197,9 +217,16 @@
 		A10000000000000000000102 /* QuickNotesTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = A70000000000000000000102 /* Build configuration list for PBXNativeTarget "QuickNotesTests" */;
-			buildPhases = (A50000000000000000000201 /* Sources */, A50000000000000000000202 /* Frameworks */, A50000000000000000000203 /* Resources */);
-			buildRules = ();
-			dependencies = (A60000000000000000000002 /* PBXTargetDependency */);
+			buildPhases = (
+				A50000000000000000000201 /* Sources */,
+				A50000000000000000000202 /* Frameworks */,
+				A50000000000000000000203 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A60000000000000000000002 /* PBXTargetDependency */,
+			);
 			name = QuickNotesTests;
 			productName = QuickNotesTests;
 			productReference = A30000000000000000000031 /* QuickNotesTests.xctest */;
@@ -215,15 +242,26 @@
 				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
-					A10000000000000000000101 = {CreatedOnToolsVersion = 27.0; };
-					A10000000000000000000102 = {CreatedOnToolsVersion = 27.0; TestTargetID = A10000000000000000000101; };
+					A10000000000000000000101 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					A10000000000000000000102 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = A10000000000000000000101;
+					};
 				};
 			};
 			buildConfigurationList = A70000000000000000000001 /* Build configuration list for PBXProject "QuickNotes" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
-			knownRegions = ("en-US", "zh-Hans", "zh-Hant", Base);
+			knownRegions = (
+				en,
+				"en-US",
+				"zh-Hans",
+				"zh-Hant",
+				Base,
+			);
 			mainGroup = A20000000000000000000001;
 			packageReferences = (
 				A80000000000000000000001 /* XCRemoteSwiftPackageReference "highlightswift" */,
@@ -231,7 +269,10 @@
 			productRefGroup = A20000000000000000000006 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			targets = (A10000000000000000000101 /* QuickNotes */, A10000000000000000000102 /* QuickNotesTests */);
+			targets = (
+				A10000000000000000000101 /* QuickNotes */,
+				A10000000000000000000102 /* QuickNotesTests */,
+			);
 		};
 /* End PBXProject section */
 
@@ -239,10 +280,21 @@
 		A50000000000000000000103 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (A40000000000000000000020 /* AppIcon.png in Resources */, A40000000000000000000022 /* MenuBarIcon@black.png in Resources */, A40000000000000000000023 /* MenuBarIcon@color.png in Resources */, A40000000000000000000024 /* Localizable.strings in Resources */);
+			files = (
+				A40000000000000000000020 /* AppIcon.png in Resources */,
+				A40000000000000000000022 /* MenuBarIcon@black.png in Resources */,
+				A40000000000000000000023 /* MenuBarIcon@color.png in Resources */,
+				A40000000000000000000024 /* Localizable.strings in Resources */,
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A50000000000000000000203 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		A50000000000000000000203 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -261,6 +313,7 @@
 				A40000000000000000000007 /* ClipboardRepository.swift in Sources */,
 				A40000000000000000000008 /* ClipboardView.swift in Sources */,
 				A40000000000000000000009 /* ContentView.swift in Sources */,
+				A40000000000000000000015 /* HelpView.swift in Sources */,
 				A4000000000000000000000A /* MenuBarController.swift in Sources */,
 				A4000000000000000000000B /* Models.swift in Sources */,
 				A4000000000000000000000C /* NotesRepository.swift in Sources */,
@@ -272,12 +325,36 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A50000000000000000000201 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A40000000000000000000012 /* QuickNotesTests.swift in Sources */); runOnlyForDeploymentPostprocessing = 0; };
+		A50000000000000000000201 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A40000000000000000000012 /* QuickNotesTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		A60000000000000000000002 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = A10000000000000000000101 /* QuickNotes */; targetProxy = A60000000000000000000001 /* PBXContainerItemProxy */; };
+		A60000000000000000000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000000000000000000101 /* QuickNotes */;
+			targetProxy = A60000000000000000000001 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		A20000000000000000000009 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				A30000000000000000000040 /* en-US */,
+				A30000000000000000000041 /* zh-Hans */,
+				A30000000000000000000042 /* zh-Hant */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		A70000000000000000000011 /* Debug */ = {
@@ -327,7 +404,10 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
 				MARKETING_VERSION = 1.3.13;
 				PRODUCT_BUNDLE_IDENTIFIER = com.webber.QuickNotes;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -347,7 +427,10 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
 				MARKETING_VERSION = 1.3.13;
 				PRODUCT_BUNDLE_IDENTIFIER = com.webber.QuickNotes;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -392,9 +475,33 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		A70000000000000000000001 /* Build configuration list for PBXProject "QuickNotes" */ = {isa = XCConfigurationList; buildConfigurations = (A70000000000000000000011 /* Debug */, A70000000000000000000012 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		A70000000000000000000101 /* Build configuration list for PBXNativeTarget "QuickNotes" */ = {isa = XCConfigurationList; buildConfigurations = (A70000000000000000000111 /* Debug */, A70000000000000000000112 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		A70000000000000000000102 /* Build configuration list for PBXNativeTarget "QuickNotesTests" */ = {isa = XCConfigurationList; buildConfigurations = (A70000000000000000000211 /* Debug */, A70000000000000000000212 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A70000000000000000000001 /* Build configuration list for PBXProject "QuickNotes" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A70000000000000000000011 /* Debug */,
+				A70000000000000000000012 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A70000000000000000000101 /* Build configuration list for PBXNativeTarget "QuickNotes" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A70000000000000000000111 /* Debug */,
+				A70000000000000000000112 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A70000000000000000000102 /* Build configuration list for PBXNativeTarget "QuickNotesTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A70000000000000000000211 /* Debug */,
+				A70000000000000000000212 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */

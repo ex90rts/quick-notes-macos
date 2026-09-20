@@ -16,6 +16,9 @@ struct ContentView: View {
         case .settings:
             SettingsView()
                 .environmentObject(vm)
+        case .help:
+            HelpView()
+                .environmentObject(vm)
         }
     }
 }
@@ -460,6 +463,11 @@ struct NotesListView: View {
                 vm.currentView = .settings
             }
 
+            HeaderMenuAction(title: "Help", systemImage: "questionmark.circle") {
+                isHeaderMenuPresented = false
+                vm.navigateToHelp()
+            }
+
             HeaderMenuAction(title: "About", systemImage: "info.circle") {
                 isHeaderMenuPresented = false
                 Task { @MainActor in
@@ -542,30 +550,33 @@ struct NotesListView: View {
             )
 
             if filtered.isEmpty {
-                VStack(alignment: .center, spacing: 8) {
-                    if let query = effectiveSearchQuery {
-                        Text(verbatim: AppLocalization.format(
-                            "No notes matching \"%@\".",
-                            language: appLanguage,
-                            arguments: query
-                        ))
-                            .foregroundColor(.secondary)
-                    } else if vm.selectedTagFilter.isEmpty {
-                        Text("No notes yet. Click \"Add Note\" to create your first note!")
-                            .foregroundColor(.secondary)
-                    } else {
-                        Text(verbatim: AppLocalization.format(
-                            "No notes under tag \"%@\" yet.",
-                            language: appLanguage,
-                            arguments: vm.selectedTagFilter
-                        ))
-                            .foregroundColor(.secondary)
+                if vm.notes.isEmpty,
+                   effectiveSearchQuery == nil,
+                   vm.selectedTagFilter.isEmpty {
+                    emptyLibraryState
+                } else {
+                    VStack(alignment: .center, spacing: 8) {
+                        if let query = effectiveSearchQuery {
+                            Text(verbatim: AppLocalization.format(
+                                "No notes matching \"%@\".",
+                                language: appLanguage,
+                                arguments: query
+                            ))
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text(verbatim: AppLocalization.format(
+                                "No notes under tag \"%@\" yet.",
+                                language: appLanguage,
+                                arguments: vm.selectedTagFilter
+                            ))
+                                .foregroundColor(.secondary)
+                        }
                     }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
                 }
-                .padding(12)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                .transition(.opacity)
-                .allowsHitTesting(false)
             }
         }
         .background(AppTheme.canvas)
@@ -576,6 +587,41 @@ struct NotesListView: View {
         .sheet(isPresented: $vm.showAbout) {
             AboutView(language: appLanguage)
         }
+    }
+
+    private var emptyLibraryState: some View {
+        VStack(alignment: .center, spacing: AppSpacing.medium) {
+            Image(systemName: "note.text.badge.plus")
+                .font(.system(size: 30, weight: .medium))
+                .foregroundStyle(AppTheme.accent)
+                .frame(width: 56, height: 56)
+                .background(AppTheme.accentHoverBackground)
+                .clipShape(.rect(cornerRadius: 14))
+
+            VStack(spacing: 10) {
+                Text("Quick capture, ready when you need it")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                Text("Welcome to Quick Notes. Create your first note or quickly explore the essentials.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            HStack(spacing: AppSpacing.small) {
+                Button("Add Note") {
+                    vm.showAddNote = true
+                }
+                .appProminentButton()
+
+                Button("View Help") {
+                    vm.navigateToHelp()
+                }
+                .appSecondaryButton()
+            }
+        }
+        .padding(AppSpacing.xLarge)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .transition(.opacity)
     }
 }
 
@@ -879,8 +925,7 @@ struct NoteRow: View {
     @State private var didJustCopy: Bool = false
     @State private var didJustCopyIdentifier: Bool = false
     @State private var showEditSheet: Bool = false
-    @State private var contentHeight: CGFloat = 0
-    @State private var maxHeight: CGFloat = 0
+    @State private var isContentExpandable = false
     @State private var isExpandCollapseHovering = false
     @State private var isHovering = false
     @State private var hoveredAction: HoveredAction?
@@ -1061,11 +1106,12 @@ struct NoteRow: View {
             // Content
             contentContainer
 
-            // Show more/less button - only show if content is truncated
-            if maxHeight > contentHeight + 0.5 && !note.expanded {
-                expandCollapseButton("Show more")
-            } else if note.expanded && maxHeight > 0 {
-                expandCollapseButton("Show less")
+            // Keep this slot stable while the viewport switches between heights.
+            if isContentExpandable {
+                expandCollapseButton(
+                    titleKey: note.expanded ? "Show less" : "Show more",
+                    systemImage: note.expanded ? "chevron.up" : "chevron.down"
+                )
             }
         }
         .padding(AppSpacing.medium)
@@ -1147,18 +1193,24 @@ struct NoteRow: View {
         }
     }
 
-    private func expandCollapseButton(_ title: String) -> some View {
-        Button(title) {
+    private func expandCollapseButton(titleKey: String, systemImage: String) -> some View {
+        Button {
             onToggleExpand(note)
+        } label: {
+            HStack(spacing: 4) {
+                Text(verbatim: AppLocalization.string(titleKey, language: appLanguage))
+                Image(systemName: systemImage)
+                    .font(.system(size: 9, weight: .semibold))
+            }
+            .padding(.horizontal, 7)
+            .frame(height: 24)
+            .background(isExpandCollapseHovering ? AppTheme.accentHoverBackground : Color.clear)
+            .clipShape(.rect(cornerRadius: 6))
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .font(.system(size: 12, weight: .medium))
         .foregroundStyle(AppTheme.accent)
-        .padding(.horizontal, 7)
-        .frame(height: 24)
-        .background(isExpandCollapseHovering ? AppTheme.accentHoverBackground : Color.clear)
-        .clipShape(.rect(cornerRadius: 6))
-        .contentShape(.rect)
         .onHover { isExpandCollapseHovering = $0 }
     }
 
@@ -1195,10 +1247,10 @@ struct NoteRow: View {
                     GeometryReader { geometry in
                         Color.clear
                             .onAppear {
-                                maxHeight = geometry.size.height
+                                updateContentExpandability(for: geometry.size.height)
                             }
                             .onChange(of: geometry.size.height) {
-                                maxHeight = geometry.size.height
+                                updateContentExpandability(for: geometry.size.height)
                             }
                     }
                 )
@@ -1208,20 +1260,13 @@ struct NoteRow: View {
                     alignment: .top
                 )
                 .clipped()
-                .background(
-                    GeometryReader { geometry in
-                        Color.clear
-                            .onAppear {
-                                contentHeight = geometry.size.height
-                            }
-                            .onChange(of: geometry.size.height) {
-                                contentHeight = geometry.size.height
-                            }
-                    }
-                )
-                .id("\(note.id)-\(note.expanded)-\(note.content)")
+                .id("\(note.id)-\(note.content)")
             Spacer(minLength: 0)
         }
+    }
+
+    private func updateContentExpandability(for fullContentHeight: CGFloat) {
+        isContentExpandable = fullContentHeight > NoteContentLayout.collapsedViewportHeight + 0.5
     }
 
     private var pinHelpText: String {

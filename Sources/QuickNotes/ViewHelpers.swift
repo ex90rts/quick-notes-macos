@@ -4,7 +4,7 @@ import SwiftUI
 
 enum AppTheme {
     /// The single source of truth for every primary interactive color.
-    /// AppAccentColor supplies a dynamic light/dark color when customized.
+    /// AppAccentColor supplies the selected custom color in every appearance.
     static var accent: Color {
         AppPreferences.selectedAccentColor().color
     }
@@ -575,11 +575,21 @@ struct SheetHeader: View {
     }
 }
 
+enum AppSheetLayout {
+    static let panelWidthRatio: CGFloat = 0.90
+    static let compactModalWidth: CGFloat = 460
+
+    static func width(for panelSize: PanelSize, fixedWidth: CGFloat? = nil) -> CGFloat {
+        fixedWidth ?? panelSize.contentSize.width * panelWidthRatio
+    }
+}
+
 struct AppSheet<Content: View>: View {
+    @EnvironmentObject private var preferences: AppPreferences
     let title: String
     let language: SupportedAppLanguage
-    let minWidth: CGFloat
     let minHeight: CGFloat
+    let fixedWidth: CGFloat?
     let closeAction: () -> Void
     let content: Content
     private let actions: AppSheetActionConfiguration?
@@ -589,8 +599,8 @@ struct AppSheet<Content: View>: View {
         language: SupportedAppLanguage,
         primaryActionTitle: String,
         isPrimaryActionEnabled: Bool = true,
-        minWidth: CGFloat = 420,
         minHeight: CGFloat,
+        fixedWidth: CGFloat? = nil,
         closeAction: @escaping () -> Void,
         cancelAction: @escaping () -> Void,
         primaryAction: @escaping () -> Void,
@@ -598,8 +608,8 @@ struct AppSheet<Content: View>: View {
     ) {
         self.title = title
         self.language = language
-        self.minWidth = minWidth
         self.minHeight = minHeight
+        self.fixedWidth = fixedWidth
         self.closeAction = closeAction
         self.content = content()
         self.actions = AppSheetActionConfiguration(
@@ -613,15 +623,15 @@ struct AppSheet<Content: View>: View {
     init(
         title: String,
         language: SupportedAppLanguage,
-        minWidth: CGFloat = 420,
         minHeight: CGFloat,
+        fixedWidth: CGFloat? = nil,
         closeAction: @escaping () -> Void,
         @ViewBuilder content: () -> Content
     ) {
         self.title = title
         self.language = language
-        self.minWidth = minWidth
         self.minHeight = minHeight
+        self.fixedWidth = fixedWidth
         self.closeAction = closeAction
         self.content = content()
         self.actions = nil
@@ -653,7 +663,11 @@ struct AppSheet<Content: View>: View {
                 Spacer(minLength: AppSpacing.large)
             }
         }
-        .frame(minWidth: minWidth, minHeight: minHeight, alignment: .topLeading)
+        .frame(
+            width: AppSheetLayout.width(for: preferences.panelSize, fixedWidth: fixedWidth),
+            alignment: .topLeading
+        )
+        .frame(minHeight: minHeight, alignment: .topLeading)
         .background(AppTheme.modalSurface)
         .environment(\.locale, language.locale)
         .environment(\.appLanguage, language)
@@ -920,7 +934,7 @@ private extension NoteCodeLanguage {
     }
 }
 
-private struct MarkdownContentView: View {
+struct MarkdownContentView: View {
     let blocks: [NoteContentBlock]
     let highlightQuery: String?
     let onToggleTodo: (Int) -> Void
