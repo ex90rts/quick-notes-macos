@@ -463,7 +463,7 @@ struct NotesListView: View {
                 vm.currentView = .settings
             }
 
-            HeaderMenuAction(title: "Help", systemImage: "questionmark.circle") {
+            HeaderMenuAction(title: "Help", systemImage: "questionmark.bubble") {
                 isHeaderMenuPresented = false
                 vm.navigateToHelp()
             }

@@ -17,7 +17,8 @@ struct HelpView: View {
                         MarkdownContentView(
                             blocks: NoteContentParser.blocks(from: helpMarkdown),
                             highlightQuery: nil,
-                            onToggleTodo: { _ in }
+                            onToggleTodo: { _ in },
+                            style: .helpDocument
                         )
                     }
 

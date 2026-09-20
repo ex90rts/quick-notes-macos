@@ -934,17 +934,91 @@ private extension NoteCodeLanguage {
     }
 }
 
+enum MarkdownContentStyle {
+    case standard
+    case helpDocument
+
+    var paragraphSpacing: CGFloat {
+        switch self {
+        case .standard: 7
+        case .helpDocument: lineSpacing * 1.5
+        }
+    }
+
+    var lineSpacing: CGFloat {
+        switch self {
+        case .standard: 0
+        case .helpDocument: 5
+        }
+    }
+
+    var bodyFontSize: CGFloat {
+        switch self {
+        case .standard: 13
+        case .helpDocument: 15
+        }
+    }
+
+    func headingVerticalPadding(for level: Int) -> CGFloat {
+        switch self {
+        case .standard:
+            level <= 2 ? 2 : 0
+        case .helpDocument:
+            switch level {
+            case 1: 14
+            case 2: 12
+            default: 9
+            }
+        }
+    }
+
+    func headingFontSize(for level: Int) -> CGFloat {
+        let standardSize: CGFloat
+        switch level {
+        case 1: standardSize = 22
+        case 2: standardSize = 19
+        case 3: standardSize = 17
+        case 4: standardSize = 15
+        case 5: standardSize = 14
+        default: standardSize = 13
+        }
+
+        return switch self {
+        case .standard: standardSize
+        case .helpDocument: standardSize + 2
+        }
+    }
+}
+
 struct MarkdownContentView: View {
     let blocks: [NoteContentBlock]
     let highlightQuery: String?
     let onToggleTodo: (Int) -> Void
+    let style: MarkdownContentStyle
+
+    init(
+        blocks: [NoteContentBlock],
+        highlightQuery: String?,
+        onToggleTodo: @escaping (Int) -> Void,
+        style: MarkdownContentStyle = .standard
+    ) {
+        self.blocks = blocks
+        self.highlightQuery = highlightQuery
+        self.onToggleTodo = onToggleTodo
+        self.style = style
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: style.paragraphSpacing) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
                 switch block {
                 case .paragraph(let source):
-                    Text(NoteContentStyler.markdown(source, highlightQuery: highlightQuery))
+                    Text(NoteContentStyler.markdown(
+                        source,
+                        highlightQuery: highlightQuery,
+                        baseFont: .system(size: style.bodyFontSize)
+                    ))
+                        .lineSpacing(style.lineSpacing)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 case .heading(let level, let text):
@@ -952,7 +1026,9 @@ struct MarkdownContentView: View {
                 case .list(let list):
                     MarkdownListView(
                         list: list,
-                        highlightQuery: highlightQuery
+                        highlightQuery: highlightQuery,
+                        lineSpacing: style.lineSpacing,
+                        fontSize: style.bodyFontSize
                     )
                 case .blockQuote(let source):
                     blockQuote(source)
@@ -978,7 +1054,7 @@ struct MarkdownContentView: View {
 
     private func heading(_ source: String, level: Int) -> some View {
         let font = Font.system(
-            size: headingFontSize(level),
+            size: style.headingFontSize(for: level),
             weight: level <= 2 ? .bold : .semibold
         )
         return Text(NoteContentStyler.markdown(
@@ -986,10 +1062,11 @@ struct MarkdownContentView: View {
             highlightQuery: highlightQuery,
             baseFont: font
         ))
+            .lineSpacing(style.lineSpacing)
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityAddTraits(.isHeader)
-            .padding(.top, level <= 2 ? 2 : 0)
+            .padding(.vertical, style.headingVerticalPadding(for: level))
     }
 
     private func blockQuote(_ source: String) -> some View {
@@ -1001,24 +1078,14 @@ struct MarkdownContentView: View {
             Text(NoteContentStyler.markdown(
                 source,
                 highlightQuery: highlightQuery,
-                baseFont: .system(size: 13).italic()
+                baseFont: .system(size: style.bodyFontSize).italic()
             ))
+                .lineSpacing(style.lineSpacing)
                 .foregroundStyle(Color.secondary)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 2)
-    }
-
-    private func headingFontSize(_ level: Int) -> CGFloat {
-        switch level {
-        case 1: 22
-        case 2: 19
-        case 3: 17
-        case 4: 15
-        case 5: 14
-        default: 13
-        }
     }
 
     private func todoRow(_ item: NoteTodoItem) -> some View {
@@ -1035,7 +1102,12 @@ struct MarkdownContentView: View {
                 Text(LocalizedStringKey(item.isCompleted ? "Mark incomplete" : "Mark complete"))
             )
 
-            Text(NoteContentStyler.markdown(item.text, highlightQuery: highlightQuery))
+            Text(NoteContentStyler.markdown(
+                item.text,
+                highlightQuery: highlightQuery,
+                baseFont: .system(size: style.bodyFontSize)
+            ))
+                .lineSpacing(style.lineSpacing)
                 .strikethrough(item.isCompleted, color: .secondary)
                 .foregroundStyle(item.isCompleted ? Color.secondary : Color.primary)
                 .textSelection(.enabled)
@@ -1047,6 +1119,8 @@ struct MarkdownContentView: View {
 private struct MarkdownListView: View {
     let list: NoteMarkdownList
     let highlightQuery: String?
+    let lineSpacing: CGFloat
+    let fontSize: CGFloat
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -1059,8 +1133,10 @@ private struct MarkdownListView: View {
 
                     Text(NoteContentStyler.markdown(
                         item.text,
-                        highlightQuery: highlightQuery
+                        highlightQuery: highlightQuery,
+                        baseFont: .system(size: fontSize)
                     ))
+                    .lineSpacing(lineSpacing)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
