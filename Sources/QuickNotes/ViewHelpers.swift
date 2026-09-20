@@ -995,17 +995,20 @@ struct MarkdownContentView: View {
     let highlightQuery: String?
     let onToggleTodo: (Int) -> Void
     let style: MarkdownContentStyle
+    let fontDesign: Font.Design
 
     init(
         blocks: [NoteContentBlock],
         highlightQuery: String?,
         onToggleTodo: @escaping (Int) -> Void,
-        style: MarkdownContentStyle = .standard
+        style: MarkdownContentStyle = .standard,
+        fontDesign: Font.Design = .default
     ) {
         self.blocks = blocks
         self.highlightQuery = highlightQuery
         self.onToggleTodo = onToggleTodo
         self.style = style
+        self.fontDesign = fontDesign
     }
 
     var body: some View {
@@ -1016,7 +1019,7 @@ struct MarkdownContentView: View {
                     Text(NoteContentStyler.markdown(
                         source,
                         highlightQuery: highlightQuery,
-                        baseFont: .system(size: style.bodyFontSize)
+                        baseFont: bodyFont
                     ))
                         .lineSpacing(style.lineSpacing)
                         .textSelection(.enabled)
@@ -1028,7 +1031,8 @@ struct MarkdownContentView: View {
                         list: list,
                         highlightQuery: highlightQuery,
                         lineSpacing: style.lineSpacing,
-                        fontSize: style.bodyFontSize
+                        fontSize: style.bodyFontSize,
+                        fontDesign: fontDesign
                     )
                 case .blockQuote(let source):
                     blockQuote(source)
@@ -1055,7 +1059,8 @@ struct MarkdownContentView: View {
     private func heading(_ source: String, level: Int) -> some View {
         let font = Font.system(
             size: style.headingFontSize(for: level),
-            weight: level <= 2 ? .bold : .semibold
+            weight: level <= 2 ? .bold : .semibold,
+            design: fontDesign
         )
         return Text(NoteContentStyler.markdown(
             source,
@@ -1078,7 +1083,7 @@ struct MarkdownContentView: View {
             Text(NoteContentStyler.markdown(
                 source,
                 highlightQuery: highlightQuery,
-                baseFont: .system(size: style.bodyFontSize).italic()
+                baseFont: bodyFont.italic()
             ))
                 .lineSpacing(style.lineSpacing)
                 .foregroundStyle(Color.secondary)
@@ -1105,7 +1110,7 @@ struct MarkdownContentView: View {
             Text(NoteContentStyler.markdown(
                 item.text,
                 highlightQuery: highlightQuery,
-                baseFont: .system(size: style.bodyFontSize)
+                baseFont: bodyFont
             ))
                 .lineSpacing(style.lineSpacing)
                 .strikethrough(item.isCompleted, color: .secondary)
@@ -1114,6 +1119,10 @@ struct MarkdownContentView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
+
+    private var bodyFont: Font {
+        .system(size: style.bodyFontSize, design: fontDesign)
+    }
 }
 
 private struct MarkdownListView: View {
@@ -1121,6 +1130,7 @@ private struct MarkdownListView: View {
     let highlightQuery: String?
     let lineSpacing: CGFloat
     let fontSize: CGFloat
+    let fontDesign: Font.Design
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -1134,7 +1144,7 @@ private struct MarkdownListView: View {
                     Text(NoteContentStyler.markdown(
                         item.text,
                         highlightQuery: highlightQuery,
-                        baseFont: .system(size: fontSize)
+                        baseFont: .system(size: fontSize, design: fontDesign)
                     ))
                     .lineSpacing(lineSpacing)
                     .textSelection(.enabled)

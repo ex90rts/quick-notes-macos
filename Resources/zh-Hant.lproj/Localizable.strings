@@ -200,8 +200,8 @@
 "Quick capture, ready when you need it" = "快捷記錄，隨時取用";
 "Welcome to Quick Notes. Create your first note or quickly explore the essentials." = "歡迎使用「快記」，建立第一則筆記或快速了解基本功能。";
 "Try asking your Agent" = "可以這樣對 Agent 說";
-"Read all notes with the Work tag and organize them by topic." = "讀取 Work 標籤下的所有筆記，並依主題整理。";
-"Create a Quick Note from the following content, generate a title, and match suitable tags: …" = "根據以下內容建立一則快記，自動產生標題並配對合適的標籤：……";
-"Update note #UUID and mark its status as complete." = "修改筆記 #UUID，將狀態更新為已完成。";
-"Create a new tag named Research." = "新增一個名為 Research 的標籤。";
-"Interpret my 100 most recent notes and identify themes, problems, and three next actions." = "解讀我最近 100 則筆記，整理主題、發現問題，並提出三個後續行動建議。";
+"Read all notes with the Work tag and organize them by topic." = "快記：讀取 Work 標籤下的所有筆記，並依主題整理。";
+"Create a Quick Note from the following content, generate a title, and match suitable tags: …" = "快記：根據以下內容建立一則快記，自動產生標題並配對合適的標籤：……";
+"Update note #UUID and mark its status as complete." = "快記：修改筆記 #UUID，將狀態更新為已完成。";
+"Create a new tag named Research." = "快記：新增一個名為 Research 的標籤。";
+"Interpret my 100 most recent notes and identify themes, problems, and three next actions." = "快記：對我的筆記數據進行 AI 分析。";

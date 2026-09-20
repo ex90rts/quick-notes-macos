@@ -200,8 +200,8 @@
 "Quick capture, ready when you need it" = "Quick capture, ready when you need it";
 "Welcome to Quick Notes. Create your first note or quickly explore the essentials." = "Welcome to Quick Notes. Create your first note or quickly explore the essentials.";
 "Try asking your Agent" = "Try asking your Agent";
-"Read all notes with the Work tag and organize them by topic." = "Read all notes with the Work tag and organize them by topic.";
-"Create a Quick Note from the following content, generate a title, and match suitable tags: …" = "Create a Quick Note from the following content, generate a title, and match suitable tags: …";
-"Update note #UUID and mark its status as complete." = "Update note #UUID and mark its status as complete.";
-"Create a new tag named Research." = "Create a new tag named Research.";
-"Interpret my 100 most recent notes and identify themes, problems, and three next actions." = "Interpret my 100 most recent notes and identify themes, problems, and three next actions.";
+"Read all notes with the Work tag and organize them by topic." = "Quick Notes: Read all notes with the Work tag and organize them by topic.";
+"Create a Quick Note from the following content, generate a title, and match suitable tags: …" = "Quick Notes: Create a Quick Note from the following content, generate a title, and match suitable tags: …";
+"Update note #UUID and mark its status as complete." = "Quick Notes: Update note #UUID and mark its status as complete.";
+"Create a new tag named Research." = "Quick Notes: Create a new tag named Research.";
+"Interpret my 100 most recent notes and identify themes, problems, and three next actions." = "Quick Notes: Analyze my notes using AI to find insights.";

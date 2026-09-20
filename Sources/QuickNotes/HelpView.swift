@@ -18,7 +18,8 @@ struct HelpView: View {
                             blocks: NoteContentParser.blocks(from: helpMarkdown),
                             highlightQuery: nil,
                             onToggleTodo: { _ in },
-                            style: .helpDocument
+                            style: .helpDocument,
+                            fontDesign: helpFontDesign
                         )
                     }
 
@@ -40,6 +41,10 @@ struct HelpView: View {
             language: appLanguage,
             arguments: Int64(NotesViewModel.maximumPinnedNotes)
         )
+    }
+
+    private var helpFontDesign: Font.Design {
+        appLanguage == .englishUS ? .serif : .default
     }
 
     private var agentPrompts: some View {

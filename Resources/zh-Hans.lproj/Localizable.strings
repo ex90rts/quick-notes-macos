@@ -204,4 +204,4 @@
 "Create a Quick Note from the following content, generate a title, and match suitable tags: …" = "快记：根据以下内容创建一条快记，自动生成标题并匹配合适的标签：……";
 "Update note #UUID and mark its status as complete." = "快记：修改笔记 #UUID，将状态更新为已完成。";
 "Create a new tag named Research." = "快记：新增一个名为 Research 的标签。";
-"Interpret my 100 most recent notes and identify themes, problems, and three next actions." = "快记：解读我最近 100 条笔记，提炼主题、发现问题，并给出三个行动建议。";
+"Interpret my 100 most recent notes and identify themes, problems, and three next actions." = "快记：对我的笔记数据进行 AI 分析。";

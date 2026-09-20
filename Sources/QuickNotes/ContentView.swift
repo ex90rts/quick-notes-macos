@@ -390,11 +390,6 @@ struct NotesListView: View {
 
     private var headerMenuLabel: some View {
         HStack(spacing: HeaderActionLayout.labelSpacing) {
-            Image(systemName: "ellipsis")
-                .font(.system(
-                    size: HeaderActionLayout.iconFontSize,
-                    weight: .semibold
-                ))
             Text("More")
                 .font(.system(
                     size: HeaderActionLayout.labelFontSize,
@@ -460,8 +455,11 @@ struct NotesListView: View {
 
             HeaderMenuAction(title: "Settings", systemImage: "gearshape") {
                 isHeaderMenuPresented = false
-                vm.currentView = .settings
+                vm.navigateToSettings()
             }
+
+            Divider()
+                .padding(.vertical, 3)
 
             HeaderMenuAction(title: "Help", systemImage: "questionmark.bubble") {
                 isHeaderMenuPresented = false
