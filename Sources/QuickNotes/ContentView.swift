@@ -535,6 +535,10 @@ struct NotesListView: View {
                 notes: filtered,
                 availableTags: vm.tags,
                 highlightQuery: effectiveSearchQuery,
+                paginationIdentity: NoteListPaginationIdentity(
+                    selectedTag: vm.selectedTagFilter,
+                    searchQuery: effectiveSearchQuery
+                ),
                 canPinMore: canPinMore,
                 newlyCreatedNoteID: $vm.newlyCreatedNoteID,
                 isFilterBarShadowVisible: $isFilterBarShadowVisible,
@@ -902,11 +906,13 @@ struct NoteRow: View {
         case pin
         case copy
         case edit
+        case detachedEdit
         case delete
     }
 
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     @Environment(\.appLanguage) private var appLanguage
+    @Environment(\.noteEditorWindows) private var noteWindows
     let note: Note
     let attentionRequestID: UUID?
     let availableTags: [String]
@@ -1071,6 +1077,18 @@ struct NoteRow: View {
                     }
                     .accessibilityLabel("Edit")
                     .help("Edit")
+
+                    NoteActionButton(
+                        action: { noteWindows?.openEdit(note: note) },
+                        onHover: { hoveredAction = $0 ? .detachedEdit : nil }
+                    ) {
+                        Image(systemName: "macwindow.on.rectangle")
+                            .foregroundStyle(
+                                hoveredAction == .detachedEdit ? AppTheme.accent : Color.secondary
+                            )
+                    }
+                    .accessibilityLabel(AppLocalization.string("Edit in Separate Window", language: appLanguage))
+                    .help(AppLocalization.string("Edit in Separate Window", language: appLanguage))
 
                     NoteActionButton(
                         action: { showDeleteAlert = true },
@@ -1372,6 +1390,8 @@ struct EditNoteSheet: View {
     @Binding var isPresented: Bool
     let language: SupportedAppLanguage
     let onSave: (Note, String, String, Set<String>, NoteRenderingMode) -> Bool
+    let windowPin: Binding<Bool>?
+    @Environment(\.noteEditorWindows) private var noteWindows
     @State private var editedTitle: String
     @State private var editedContent: String
     @State private var editedTags: Set<String>
@@ -1383,34 +1403,53 @@ struct EditNoteSheet: View {
         availableTags: [String],
         isPresented: Binding<Bool>,
         language: SupportedAppLanguage,
-        onSave: @escaping (Note, String, String, Set<String>, NoteRenderingMode) -> Bool
+        onSave: @escaping (Note, String, String, Set<String>, NoteRenderingMode) -> Bool,
+        draft: NoteEditorDraft? = nil,
+        windowPin: Binding<Bool>? = nil
     ) {
         self.note = note
         self.availableTags = availableTags
         self._isPresented = isPresented
         self.language = language
         self.onSave = onSave
-        self._editedTitle = State(initialValue: note.title ?? "")
-        self._editedContent = State(initialValue: note.content)
-        self._editedTags = State(initialValue: Set(note.tags))
-        let editableRenderingMode = note.renderingMode == .code(.automatic)
-            ? NoteRenderingMode.automatic
-            : note.renderingMode
-        self._editedRenderingMode = State(initialValue: editableRenderingMode)
+        self.windowPin = windowPin
+        let initialDraft = draft ?? NoteEditorDraft(note: note)
+        self._editedTitle = State(initialValue: initialDraft.title)
+        self._editedContent = State(initialValue: initialDraft.content)
+        self._editedTags = State(initialValue: initialDraft.tags)
+        self._editedRenderingMode = State(initialValue: initialDraft.renderingMode)
     }
 
     var body: some View {
         AppSheet(
-            title: "Edit Note",
+            title: windowPin == nil
+                ? "Edit Note"
+                : NoteEditorWindowManager.displayTitle(
+                    baseKey: "Edit Note",
+                    noteTitle: note.title,
+                    language: language
+                ),
             language: language,
             primaryActionTitle: "Save",
             isPrimaryActionEnabled: NoteContentPolicy.canSave(editedContent),
             minHeight: 450,
             closeAction: { isPresented = false },
+            detachAction: detachAction,
+            windowPin: windowPin,
             cancelAction: { isPresented = false },
             primaryAction: save
         ) {
-            VStack(alignment: .leading, spacing: 12) {
+            editorFields
+        }
+    }
+
+    private var detachAction: (() -> Void)? {
+        guard windowPin == nil, noteWindows != nil else { return nil }
+        return detach
+    }
+
+    private var editorFields: some View {
+        VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Title (Optional)")
                         .font(.system(size: 12, weight: .medium))
@@ -1432,7 +1471,7 @@ struct EditNoteSheet: View {
                             .font(.system(size: 14))
                             .focused($focusedField, equals: .content)
                             .scrollContentBackground(.hidden)
-                            .frame(minHeight: 120)
+                            .frame(minHeight: 120, maxHeight: windowPin == nil ? nil : .infinity)
                             .padding(.vertical, AppControlMetrics.editorVerticalPadding)
                             .appInputSurface(isFocused: focusedField == .content)
 
@@ -1470,8 +1509,19 @@ struct EditNoteSheet: View {
                         )
                     }
                 }
-            }
         }
+        .frame(maxHeight: windowPin == nil ? nil : .infinity, alignment: .top)
+    }
+
+    private func detach() {
+        let draft = NoteEditorDraft(
+            title: editedTitle,
+            content: editedContent,
+            tags: editedTags,
+            renderingMode: editedRenderingMode
+        )
+        isPresented = false
+        DispatchQueue.main.async { noteWindows?.openEdit(note: note, draft: draft) }
     }
 
     private func save() {

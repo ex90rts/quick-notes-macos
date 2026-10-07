@@ -39,6 +39,11 @@
 "Pin note" = "Pin note";
 "You can pin up to %lld notes" = "You can pin up to %lld notes";
 "Edit Note" = "Edit Note";
+"Edit in Separate Window" = "Edit in Separate Window";
+"Open in Separate Window" = "Open in Separate Window";
+"Keep Window on Top" = "Keep Window on Top";
+"On" = "On";
+"Off" = "Off";
 "New Note" = "New Note";
 "Save" = "Save";
 "Cancel" = "Cancel";

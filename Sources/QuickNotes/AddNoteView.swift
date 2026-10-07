@@ -127,12 +127,30 @@ struct AddNoteView: View {
 
     @EnvironmentObject var vm: NotesViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.noteEditorWindows) private var noteWindows
     let language: SupportedAppLanguage
+    var closeAction: (() -> Void)? = nil
+    var windowPin: Binding<Bool>? = nil
     @FocusState private var focusedField: Field?
     @State private var title = ""
     @State private var content = ""
     @State private var selectedTags: Set<String> = []
     @State private var renderingMode: NoteRenderingMode = .automatic
+
+    init(
+        language: SupportedAppLanguage,
+        draft: NoteEditorDraft = NoteEditorDraft(),
+        closeAction: (() -> Void)? = nil,
+        windowPin: Binding<Bool>? = nil
+    ) {
+        self.language = language
+        self.closeAction = closeAction
+        self.windowPin = windowPin
+        _title = State(initialValue: draft.title)
+        _content = State(initialValue: draft.content)
+        _selectedTags = State(initialValue: draft.tags)
+        _renderingMode = State(initialValue: draft.renderingMode)
+    }
 
     var body: some View {
         AppSheet(
@@ -141,11 +159,23 @@ struct AddNoteView: View {
             primaryActionTitle: "Save",
             isPrimaryActionEnabled: NoteContentPolicy.canSave(content),
             minHeight: 440,
-            closeAction: { dismiss() },
+            closeAction: close,
+            detachAction: detachAction,
+            windowPin: windowPin,
             cancelAction: cancel,
             primaryAction: save
         ) {
-            VStack(alignment: .leading, spacing: 12) {
+            editorFields
+        }
+    }
+
+    private var detachAction: (() -> Void)? {
+        guard windowPin == nil, noteWindows != nil else { return nil }
+        return detach
+    }
+
+    private var editorFields: some View {
+        VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Title (Optional)")
                         .font(.system(size: 12, weight: .medium))
@@ -173,7 +203,7 @@ struct AddNoteView: View {
                                 }
                             }
                         )
-                        .frame(minHeight: 120)
+                        .frame(minHeight: 120, maxHeight: windowPin == nil ? nil : .infinity)
                         .padding(.vertical, AppControlMetrics.editorVerticalPadding)
                         .appInputSurface(isFocused: focusedField == .content)
 
@@ -211,8 +241,23 @@ struct AddNoteView: View {
                         )
                     }
                 }
-            }
         }
+        .frame(maxHeight: windowPin == nil ? nil : .infinity, alignment: .top)
+    }
+
+    private func detach() {
+        let draft = NoteEditorDraft(
+            title: title,
+            content: content,
+            tags: selectedTags,
+            renderingMode: renderingMode
+        )
+        close()
+        DispatchQueue.main.async { noteWindows?.openNew(draft: draft) }
+    }
+
+    private func close() {
+        if let closeAction { closeAction() } else { dismiss() }
     }
 
     private func save() {
@@ -222,11 +267,11 @@ struct AddNoteView: View {
             tags: selectedTags,
             renderingMode: renderingMode
         ) else { return }
-        dismiss()
+        close()
     }
 
     private func cancel() {
-        dismiss()
+        close()
     }
 }
 

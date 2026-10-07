@@ -39,6 +39,11 @@
 "Pin note" = "置顶笔记";
 "You can pin up to %lld notes" = "最多可置顶 %lld 条笔记";
 "Edit Note" = "编辑笔记";
+"Edit in Separate Window" = "在独立窗口中编辑";
+"Open in Separate Window" = "转到独立窗口";
+"Keep Window on Top" = "窗口置顶";
+"On" = "开启";
+"Off" = "关闭";
 "New Note" = "新建笔记";
 "Save" = "保存";
 "Cancel" = "取消";

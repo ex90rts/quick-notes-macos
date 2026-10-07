@@ -542,13 +542,68 @@ struct SheetHeader: View {
     let title: String
     let language: SupportedAppLanguage
     let closeAction: () -> Void
+    var detachAction: (() -> Void)? = nil
+    var windowPin: Binding<Bool>? = nil
     @State private var isCloseHovering = false
+    @State private var isWindowPinHovering = false
+    @State private var isDetachHovering = false
+    @State private var isWindowPinned = true
 
     var body: some View {
         HStack {
             Text(verbatim: AppLocalization.string(title, language: language))
                 .font(.system(size: 15, weight: .semibold))
             Spacer()
+            if let windowPin {
+                Button {
+                    isWindowPinned.toggle()
+                    windowPin.wrappedValue = isWindowPinned
+                } label: {
+                    Image(systemName: isWindowPinned ? "pin.fill" : "pin")
+                        .frame(width: 26, height: 26)
+                        .background(isWindowPinHovering ? AppTheme.accentHoverBackground : AppTheme.quietFill)
+                        .clipShape(Circle())
+                        .overlay {
+                            Circle()
+                                .stroke(
+                                    isWindowPinHovering
+                                        ? AppTheme.accent.opacity(0.32)
+                                        : AppTheme.border.opacity(0.72)
+                                )
+                        }
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(isWindowPinned ? AppTheme.accent : Color.secondary)
+                .contentShape(Circle())
+                .onHover { isWindowPinHovering = $0 }
+                .animation(.easeOut(duration: 0.14), value: isWindowPinHovering)
+                .accessibilityLabel(AppLocalization.string("Keep Window on Top", language: language))
+                .accessibilityValue(AppLocalization.string(isWindowPinned ? "On" : "Off", language: language))
+                .help(AppLocalization.string("Keep Window on Top", language: language))
+            }
+            if let detachAction {
+                Button(action: detachAction) {
+                    Image(systemName: "macwindow.on.rectangle")
+                        .frame(width: 26, height: 26)
+                        .background(isDetachHovering ? AppTheme.accentHoverBackground : AppTheme.quietFill)
+                        .clipShape(Circle())
+                        .overlay {
+                            Circle()
+                                .stroke(
+                                    isDetachHovering
+                                        ? AppTheme.accent.opacity(0.32)
+                                        : AppTheme.border.opacity(0.72)
+                                )
+                        }
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(isDetachHovering ? AppTheme.accent : Color.secondary)
+                .contentShape(Circle())
+                .onHover { isDetachHovering = $0 }
+                .animation(.easeOut(duration: 0.14), value: isDetachHovering)
+                .accessibilityLabel(AppLocalization.string("Open in Separate Window", language: language))
+                .help(AppLocalization.string("Open in Separate Window", language: language))
+            }
             Button(action: closeAction) {
                 Image(systemName: "xmark")
                     .font(.system(size: 11, weight: .semibold))
@@ -591,6 +646,8 @@ struct AppSheet<Content: View>: View {
     let minHeight: CGFloat
     let fixedWidth: CGFloat?
     let closeAction: () -> Void
+    let detachAction: (() -> Void)?
+    let windowPin: Binding<Bool>?
     let content: Content
     private let actions: AppSheetActionConfiguration?
 
@@ -602,6 +659,8 @@ struct AppSheet<Content: View>: View {
         minHeight: CGFloat,
         fixedWidth: CGFloat? = nil,
         closeAction: @escaping () -> Void,
+        detachAction: (() -> Void)? = nil,
+        windowPin: Binding<Bool>? = nil,
         cancelAction: @escaping () -> Void,
         primaryAction: @escaping () -> Void,
         @ViewBuilder content: () -> Content
@@ -611,6 +670,8 @@ struct AppSheet<Content: View>: View {
         self.minHeight = minHeight
         self.fixedWidth = fixedWidth
         self.closeAction = closeAction
+        self.detachAction = detachAction
+        self.windowPin = windowPin
         self.content = content()
         self.actions = AppSheetActionConfiguration(
             primaryActionTitle: primaryActionTitle,
@@ -633,19 +694,28 @@ struct AppSheet<Content: View>: View {
         self.minHeight = minHeight
         self.fixedWidth = fixedWidth
         self.closeAction = closeAction
+        self.detachAction = nil
+        self.windowPin = nil
         self.content = content()
         self.actions = nil
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SheetHeader(title: title, language: language, closeAction: closeAction)
+            SheetHeader(
+                title: title,
+                language: language,
+                closeAction: closeAction,
+                detachAction: detachAction,
+                windowPin: windowPin
+            )
                 .padding(.horizontal, AppSpacing.large)
                 .padding(.vertical, AppSpacing.medium)
 
             content
                 .padding(.horizontal, AppSpacing.large)
                 .padding(.top, AppSpacing.large)
+                .frame(maxHeight: windowPin == nil ? nil : .infinity, alignment: .top)
 
             if let actions {
                 Spacer(minLength: AppSpacing.xLarge)
@@ -663,14 +733,28 @@ struct AppSheet<Content: View>: View {
                 Spacer(minLength: AppSpacing.large)
             }
         }
-        .frame(
-            width: AppSheetLayout.width(for: preferences.panelSize, fixedWidth: fixedWidth),
-            alignment: .topLeading
-        )
-        .frame(minHeight: minHeight, alignment: .topLeading)
+        .frame(width: windowPin == nil
+            ? AppSheetLayout.width(for: preferences.panelSize, fixedWidth: fixedWidth)
+            : nil, alignment: .topLeading)
+        .frame(minWidth: windowPin == nil ? nil : 500, maxWidth: windowPin == nil ? nil : .infinity)
+        .frame(minHeight: minHeight, maxHeight: windowPin == nil ? nil : .infinity, alignment: .topLeading)
         .background(AppTheme.modalSurface)
+        .modifier(DetachedWindowSafeAreaModifier(isDetached: windowPin != nil))
         .environment(\.locale, language.locale)
         .environment(\.appLanguage, language)
+    }
+}
+
+private struct DetachedWindowSafeAreaModifier: ViewModifier {
+    let isDetached: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if isDetached {
+            content.ignoresSafeArea(.container, edges: .top)
+        } else {
+            content
+        }
     }
 }
 

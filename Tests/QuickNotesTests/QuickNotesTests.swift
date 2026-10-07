@@ -7,6 +7,42 @@ import Testing
 
 @Suite("Quick Notes core behavior")
 struct QuickNotesTests {
+    @Test("Detached note editor preserves drafts and uses a resizable floating window")
+    @MainActor
+    func detachedNoteEditorConfiguration() {
+        let note = Note(
+            id: UUID(), title: "Draft", content: "Some text", tags: ["Work"],
+            timestamp: Date(), renderingMode: .code(.automatic), expanded: false
+        )
+        let draft = NoteEditorDraft(note: note)
+        #expect(draft.title == "Draft")
+        #expect(draft.content == "Some text")
+        #expect(draft.tags == ["Work"])
+        #expect(draft.renderingMode == .automatic)
+        #expect(NoteEditorDraft().content.isEmpty)
+        #expect(NoteEditorWindowManager.defaultSize.width > NoteEditorWindowManager.minimumSize.width)
+        #expect(NoteEditorWindowManager.defaultSize.height > NoteEditorWindowManager.minimumSize.height)
+        #expect(NoteEditorWindowManager.level(isPinned: true) == .floating)
+        #expect(NoteEditorWindowManager.level(isPinned: false) == .normal)
+        #expect(NoteEditorWindowManager.detachedWindowStyleMask.contains(.resizable))
+        #expect(!NoteEditorWindowManager.detachedWindowStyleMask.contains(.closable))
+        #expect(!NoteEditorWindowManager.detachedWindowStyleMask.contains(.miniaturizable))
+        #expect(
+            NoteEditorWindowManager.displayTitle(
+                baseKey: "Edit Note",
+                noteTitle: "笔记标题 001",
+                language: .englishUS
+            ) == "Edit Note - 笔记标题 001"
+        )
+        #expect(
+            NoteEditorWindowManager.displayTitle(
+                baseKey: "Edit Note",
+                noteTitle: "这是一个超过十个字符的标题",
+                language: .englishUS
+            ) == "Edit Note - 这是一个超过十个字符..."
+        )
+    }
+
     @Test("Add Note sheet starts with the content editor focused")
     @MainActor
     func addNoteInitialFocus() throws {
@@ -730,6 +766,90 @@ struct QuickNotesTests {
         #expect(window.leadingHeight + renderedHeight + window.trailingHeight == totalHeight)
     }
 
+    @Test("Note list pagination starts with at most one page")
+    func noteListPaginationInitialCount() {
+        #expect(NoteListPagination.initialCount(totalCount: 0) == 0)
+        #expect(NoteListPagination.initialCount(totalCount: 12) == 12)
+        #expect(NoteListPagination.initialCount(totalCount: 50) == 50)
+        #expect(NoteListPagination.initialCount(totalCount: 51) == 50)
+    }
+
+    @Test("Deleting a note keeps the pagination identity, while changing filters resets it")
+    func noteListPaginationIdentity() {
+        let original = NoteListPaginationIdentity(selectedTag: "", searchQuery: nil)
+        let afterDeletion = NoteListPaginationIdentity(selectedTag: "", searchQuery: nil)
+        let otherTag = NoteListPaginationIdentity(selectedTag: "Work", searchQuery: nil)
+        let otherSearch = NoteListPaginationIdentity(selectedTag: "", searchQuery: "draft")
+
+        #expect(original == afterDeletion)
+        #expect(original != otherTag)
+        #expect(original != otherSearch)
+    }
+
+    @Test("Note list pagination appends complete pages without exceeding total")
+    func noteListPaginationNextCount() {
+        #expect(NoteListPagination.nextCount(currentCount: 0, totalCount: 12) == 12)
+        #expect(NoteListPagination.nextCount(currentCount: 50, totalCount: 51) == 51)
+        #expect(NoteListPagination.nextCount(currentCount: 50, totalCount: 100) == 100)
+        #expect(NoteListPagination.nextCount(currentCount: 100, totalCount: 100) == 100)
+    }
+
+    @Test("Note list pagination preloads near the bottom")
+    func noteListPaginationBottomPreload() {
+        #expect(NoteListPagination.shouldLoadNextPage(
+            maximumY: 1_600,
+            contentHeight: 2_000,
+            viewportHeight: 300
+        ))
+        #expect(!NoteListPagination.shouldLoadNextPage(
+            maximumY: 1_000,
+            contentHeight: 2_000,
+            viewportHeight: 300
+        ))
+        #expect(!NoteListPagination.shouldLoadNextPage(
+            maximumY: 1_600,
+            contentHeight: 2_000,
+            viewportHeight: 0
+        ))
+    }
+
+    @Test("Note list pagination resets only after returning to the top")
+    func noteListPaginationTopReset() {
+        #expect(NoteListPagination.shouldResetToFirstPage(
+            minimumY: 0,
+            loadedCount: 100,
+            totalCount: 120
+        ))
+        #expect(!NoteListPagination.shouldResetToFirstPage(
+            minimumY: 2,
+            loadedCount: 100,
+            totalCount: 120
+        ))
+        #expect(!NoteListPagination.shouldResetToFirstPage(
+            minimumY: 0,
+            loadedCount: 50,
+            totalCount: 120
+        ))
+    }
+
+    @Test("Returning from later pages clears the offset and invalidates pending height corrections")
+    @MainActor
+    func noteListScrollMetricsTopReset() {
+        let metrics = NoteListScrollMetrics()
+        metrics.contentOffsetY = 8_000
+        metrics.correctionGeneration = 3
+        let pendingCorrection = metrics.correctionGeneration
+
+        metrics.resetToTop()
+
+        #expect(metrics.contentOffsetY == 0)
+        #expect(metrics.correctionGeneration != pendingCorrection)
+        let firstResetGeneration = metrics.correctionGeneration
+        metrics.resetToTop()
+        #expect(metrics.contentOffsetY == 0)
+        #expect(metrics.correctionGeneration > firstResetGeneration)
+    }
+
     @Test("Back to top appears after half a viewport of scrolling")
     func scrollToTopThreshold() {
         #expect(ScrollToTopBehavior.scrollDistanceViewportCount == 0.5)
@@ -862,6 +982,34 @@ struct QuickNotesTests {
                 overscan: 1
             ) == expectedWindow)
         }
+    }
+
+    @Test("Measured row height compensation preserves the visible anchor")
+    func noteListHeightCompensation() {
+        let changes: [(index: Int, old: CGFloat, new: CGFloat)] = [
+            (index: 1, old: 100, new: 140),
+            (index: 4, old: 100, new: 80),
+            (index: 7, old: 100, new: 180)
+        ]
+
+        #expect(
+            NoteListHeightStability.scrollCompensation(
+                changedHeights: changes,
+                anchorIndex: 5
+            ) == 20
+        )
+        #expect(
+            NoteListHeightStability.scrollCompensation(
+                changedHeights: changes,
+                anchorIndex: 0
+            ) == 0
+        )
+        #expect(
+            NoteListHeightStability.scrollCompensation(
+                changedHeights: changes,
+                anchorIndex: 2
+            ) == 40
+        )
     }
 
     @Test("Indexed virtual note windows match the previous linear layout")

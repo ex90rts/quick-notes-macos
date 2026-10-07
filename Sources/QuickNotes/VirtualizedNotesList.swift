@@ -220,12 +220,81 @@ enum NoteListVirtualizer {
     }
 }
 
+enum NoteListHeightStability {
+    /// Returns the amount by which the scroll offset must move when rows before
+    /// the visible anchor switch from their estimated to measured heights.
+    static func scrollCompensation(
+        changedHeights: [(index: Int, old: CGFloat, new: CGFloat)],
+        anchorIndex: Int
+    ) -> CGFloat {
+        changedHeights.reduce(into: CGFloat.zero) { compensation, change in
+            guard change.index < anchorIndex else { return }
+            compensation += change.new - change.old
+        }
+    }
+}
+
+enum NoteListPagination {
+    static let pageSize = 50
+    static let defaultPreloadDistance: CGFloat = 480
+
+    static func initialCount(totalCount: Int) -> Int {
+        min(max(totalCount, 0), pageSize)
+    }
+
+    static func nextCount(currentCount: Int, totalCount: Int) -> Int {
+        min(max(currentCount, 0) + pageSize, max(totalCount, 0))
+    }
+
+    static func shouldLoadNextPage(
+        maximumY: CGFloat,
+        contentHeight: CGFloat,
+        viewportHeight: CGFloat,
+        preloadDistance: CGFloat = defaultPreloadDistance
+    ) -> Bool {
+        guard contentHeight > 0, viewportHeight > 0 else { return false }
+        let distanceToBottom = contentHeight - maximumY
+        return distanceToBottom <= max(preloadDistance, viewportHeight * 1.5)
+    }
+
+    static func shouldResetToFirstPage(
+        minimumY: CGFloat,
+        loadedCount: Int,
+        totalCount: Int,
+        topThreshold: CGFloat = 1
+    ) -> Bool {
+        loadedCount > initialCount(totalCount: totalCount)
+            && minimumY <= topThreshold
+    }
+}
+
+struct NoteListPaginationIdentity: Equatable {
+    let selectedTag: String
+    let searchQuery: String?
+}
+
 private struct NoteListViewport: Equatable {
     let minimumY: CGFloat
     let maximumY: CGFloat
+    let contentHeight: CGFloat
+    let viewportHeight: CGFloat
 
     var range: Range<CGFloat> {
         minimumY..<maximumY
+    }
+}
+
+@MainActor
+final class NoteListScrollMetrics: ObservableObject {
+    // This object intentionally does not publish offset changes. Updating a
+    // SwiftUI @State value for every scroll tick would rebuild the row window
+    // while the user is dragging the scrollbar.
+    var contentOffsetY: CGFloat = 0
+    var correctionGeneration = 0
+
+    func resetToTop() {
+        contentOffsetY = 0
+        correctionGeneration += 1
     }
 }
 
@@ -238,14 +307,15 @@ private struct NoteRowHeightPreferenceKey: PreferenceKey {
 }
 
 struct VirtualizedNotesList: View {
-    private static let estimatedItemHeight: CGFloat = 132
-    private static let overscanCount = 5
+    private static let fallbackEstimatedItemHeight: CGFloat = 150
+    private static let overscanCount = 8
     private static let topAnchor = "virtual-notes-top"
 
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     let notes: [Note]
     let availableTags: [String]
     let highlightQuery: String?
+    let paginationIdentity: NoteListPaginationIdentity
     let canPinMore: Bool
     @Binding var newlyCreatedNoteID: UUID?
     @Binding var isFilterBarShadowVisible: Bool
@@ -257,15 +327,21 @@ struct VirtualizedNotesList: View {
     let onDelete: (Note) -> Void
     let onUpdate: (Note, String, String, Set<String>, NoteRenderingMode) -> Bool
     @State private var measuredHeights: [UUID: CGFloat] = [:]
+    @State private var loadedCount = NoteListPagination.pageSize
     @State private var viewport: NoteListViewport?
+    @State private var scrollPosition = ScrollPosition()
+    @State private var scrollContainerGeneration = 0
     @State private var isScrollToTopVisible = false
     @State private var attentionNoteID: UUID?
     @State private var pendingAttentionNoteID: UUID?
     @StateObject private var scrollSettleObserver = NewNoteScrollSettleObserver()
+    @StateObject private var scrollMetrics = NoteListScrollMetrics()
 
     var body: some View {
-        let itemHeights = notes.map {
-            measuredHeights[$0.id] ?? Self.estimatedItemHeight
+        let containerGeneration = scrollContainerGeneration
+        let loadedNotes = Array(notes.prefix(loadedCount))
+        let itemHeights = loadedNotes.map {
+            measuredHeights[$0.id] ?? Self.estimatedItemHeight(for: $0)
         }
         let heightIndex = NoteListHeightIndex(
             itemHeights: itemHeights,
@@ -288,7 +364,7 @@ struct VirtualizedNotesList: View {
                         Color.clear.frame(height: currentLayout.leadingHeight)
 
                         VStack(spacing: AppSpacing.small) {
-                            ForEach(Array(notes[currentLayout.range])) { note in
+                            ForEach(Array(loadedNotes[currentLayout.range])) { note in
                                 NoteRow(
                                     note: note,
                                     attentionRequestID: attentionNoteID == note.id ? note.id : nil,
@@ -321,15 +397,46 @@ struct VirtualizedNotesList: View {
                     .padding(AppSpacing.large)
                 }
             }
-            .onPreferenceChange(NoteRowHeightPreferenceKey.self, perform: updateMeasuredHeights)
+            .scrollPosition($scrollPosition)
+            .id(containerGeneration)
+            .onPreferenceChange(NoteRowHeightPreferenceKey.self) { newHeights in
+                guard containerGeneration == scrollContainerGeneration else { return }
+                updateMeasuredHeights(
+                    newHeights,
+                    heightIndex: heightIndex,
+                    currentRange: currentLayout.range
+                )
+            }
             .onScrollGeometryChange(for: NoteListViewport.self) { geometry in
                 let visibleRect = geometry.visibleRect
                 let contentTop = AppSpacing.large
                 return NoteListViewport(
                     minimumY: max(0, visibleRect.minY - contentTop),
-                    maximumY: max(0, visibleRect.maxY - contentTop)
+                    maximumY: max(0, visibleRect.maxY - contentTop),
+                    contentHeight: max(0, geometry.contentSize.height - contentTop),
+                    viewportHeight: visibleRect.height
                 )
             } action: { _, newViewport in
+                guard containerGeneration == scrollContainerGeneration else { return }
+                scrollMetrics.contentOffsetY = newViewport.minimumY
+                if NoteListPagination.shouldResetToFirstPage(
+                    minimumY: newViewport.minimumY,
+                    loadedCount: loadedCount,
+                    totalCount: notes.count
+                ) {
+                    resetPagination()
+                } else if loadedCount < notes.count,
+                          NoteListPagination.shouldLoadNextPage(
+                              maximumY: newViewport.maximumY,
+                              contentHeight: newViewport.contentHeight,
+                              viewportHeight: newViewport.viewportHeight
+                          ) {
+                    loadedCount = NoteListPagination.nextCount(
+                        currentCount: loadedCount,
+                        totalCount: notes.count
+                    )
+                    scrollMetrics.correctionGeneration += 1
+                }
                 observePendingAttentionScroll(
                     newViewport,
                     heightIndex: heightIndex
@@ -345,6 +452,7 @@ struct VirtualizedNotesList: View {
                     scrollOffset: geometry.visibleRect.minY
                 )
             } action: { _, shouldShow in
+                guard containerGeneration == scrollContainerGeneration else { return }
                 isFilterBarShadowVisible = shouldShow
             }
             .onScrollGeometryChange(for: Bool.self) { geometry in
@@ -353,6 +461,7 @@ struct VirtualizedNotesList: View {
                     viewportHeight: geometry.visibleRect.height
                 )
             } action: { _, shouldShow in
+                guard containerGeneration == scrollContainerGeneration else { return }
                 withAnimation(.easeOut(duration: 0.18)) {
                     isScrollToTopVisible = shouldShow
                 }
@@ -360,8 +469,18 @@ struct VirtualizedNotesList: View {
             .overlay(alignment: .bottomTrailing) {
                 if isScrollToTopVisible {
                     ScrollToTopButton {
-                        withAnimation(.easeInOut(duration: 0.42)) {
-                            proxy.scrollTo(Self.topAnchor, anchor: .top)
+                        // Reusing the virtualized scroll container can preserve its
+                        // old viewport or let a height correction replace the jump.
+                        // Recreate it together with the first-page layout instead.
+                        var transaction = Transaction()
+                        transaction.disablesAnimations = true
+                        withTransaction(transaction) {
+                            resetPagination()
+                            scrollMetrics.resetToTop()
+                            scrollPosition = ScrollPosition(edge: .top)
+                            isScrollToTopVisible = false
+                            isFilterBarShadowVisible = false
+                            scrollContainerGeneration += 1
                         }
                     }
                     .padding(AppSpacing.large)
@@ -375,6 +494,15 @@ struct VirtualizedNotesList: View {
             .task(id: newlyCreatedNoteID) {
                 guard let noteID = newlyCreatedNoteID,
                       let noteIndex = notes.firstIndex(where: { $0.id == noteID }) else { return }
+
+                if noteIndex >= loadedCount {
+                    loadedCount = min(
+                        notes.count,
+                        ((noteIndex / NoteListPagination.pageSize) + 1)
+                            * NoteListPagination.pageSize
+                    )
+                    scrollMetrics.correctionGeneration += 1
+                }
 
                 pendingAttentionNoteID = nil
                 scrollSettleObserver.cancel()
@@ -397,7 +525,12 @@ struct VirtualizedNotesList: View {
                         visibleRange.upperBound - visibleRange.lowerBound,
                         NewNoteRevealBehavior.defaultViewportHeight
                     )
-                    viewport = NoteListViewport(minimumY: 0, maximumY: viewportHeight)
+                    viewport = NoteListViewport(
+                        minimumY: 0,
+                        maximumY: viewportHeight,
+                        contentHeight: heightIndex.totalHeight,
+                        viewportHeight: viewportHeight
+                    )
                 }
 
                 await Task.yield()
@@ -412,6 +545,13 @@ struct VirtualizedNotesList: View {
                     scrollSettleObserver.begin(noteID: noteID)
                 }
                 proxy.scrollTo(noteID, anchor: .center)
+            }
+            .task(id: paginationIdentity) {
+                resetPagination()
+                guard newlyCreatedNoteID == nil else { return }
+                await Task.yield()
+                guard !Task.isCancelled else { return }
+                proxy.scrollTo(Self.topAnchor, anchor: .top)
             }
             .task(id: attentionNoteID) {
                 guard let noteID = attentionNoteID else { return }
@@ -440,7 +580,8 @@ struct VirtualizedNotesList: View {
         heightIndex: NoteListHeightIndex
     ) {
         guard let noteID = pendingAttentionNoteID,
-              let noteIndex = notes.firstIndex(where: { $0.id == noteID }) else { return }
+              let noteIndex = notes.firstIndex(where: { $0.id == noteID }),
+              noteIndex < heightIndex.count else { return }
 
         let targetIsVisible = NewNoteRevealBehavior.isItemVisible(
             itemIndex: noteIndex,
@@ -454,18 +595,50 @@ struct VirtualizedNotesList: View {
         )
     }
 
-    private func updateMeasuredHeights(_ newHeights: [UUID: CGFloat]) {
+    private func updateMeasuredHeights(
+        _ newHeights: [UUID: CGFloat],
+        heightIndex: NoteListHeightIndex,
+        currentRange: Range<Int>
+    ) {
         var updatedHeights = measuredHeights
         var didChange = false
+        var changedRows: [(index: Int, old: CGFloat, new: CGFloat)] = []
 
-        for (id, height) in newHeights where height > 0 {
-            if abs((updatedHeights[id] ?? 0) - height) > 0.5 {
+        let loadedNotes = Array(notes.prefix(loadedCount))
+        for index in currentRange where loadedNotes.indices.contains(index) {
+            let id = loadedNotes[index].id
+            guard let height = newHeights[id], height > 0 else { continue }
+            let oldHeight = updatedHeights[id] ?? Self.estimatedItemHeight(for: loadedNotes[index])
+            if abs(oldHeight - height) > 0.5 {
                 updatedHeights[id] = height
                 didChange = true
+                changedRows.append((index: index, old: oldHeight, new: height))
             }
         }
         if didChange {
             measuredHeights = updatedHeights
+
+            let anchorIndex = heightIndex.firstItemEnding(
+                atOrAfter: max(0, scrollMetrics.contentOffsetY)
+            )
+            let compensation = NoteListHeightStability.scrollCompensation(
+                changedHeights: changedRows,
+                anchorIndex: anchorIndex
+            )
+            guard abs(compensation) > 0.5 else { return }
+
+            scrollMetrics.correctionGeneration += 1
+            let generation = scrollMetrics.correctionGeneration
+            Task { @MainActor in
+                await Task.yield()
+                guard generation == scrollMetrics.correctionGeneration else { return }
+                let targetOffset = max(0, scrollMetrics.contentOffsetY + compensation)
+                var transaction = Transaction()
+                transaction.animation = nil
+                withTransaction(transaction) {
+                    scrollPosition.scrollTo(y: targetOffset)
+                }
+            }
         }
     }
 
@@ -481,5 +654,30 @@ struct VirtualizedNotesList: View {
         )
         guard viewport == nil || newWindow.range != currentRange else { return }
         viewport = newViewport
+    }
+
+    private func resetPagination() {
+        loadedCount = NoteListPagination.initialCount(totalCount: notes.count)
+        let currentIDs = Set(notes.map(\.id))
+        measuredHeights = measuredHeights.filter { currentIDs.contains($0.key) }
+        viewport = nil
+        scrollMetrics.correctionGeneration += 1
+    }
+
+    private static func estimatedItemHeight(for note: Note) -> CGFloat {
+        let lineCount = max(1, note.content.split(separator: "\n", omittingEmptySubsequences: false).count)
+        let estimatedLineCount = note.expanded
+            ? min(lineCount, 28)
+            : min(lineCount, 5)
+        let estimatedContentHeight = note.expanded
+            ? CGFloat(estimatedLineCount) * 18
+            : min(
+                NoteContentLayout.collapsedViewportHeight,
+                CGFloat(estimatedLineCount) * 18
+            )
+        let metadataHeight: CGFloat = note.title?.isEmpty == false || !note.tags.isEmpty ? 28 : 0
+        let expandControlHeight: CGFloat = lineCount > 5 ? 32 : 0
+        let estimate = 24 + 22 + 6 + metadataHeight + estimatedContentHeight + expandControlHeight
+        return max(Self.fallbackEstimatedItemHeight, estimate)
     }
 }

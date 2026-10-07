@@ -39,6 +39,11 @@
 "Pin note" = "釘選筆記";
 "You can pin up to %lld notes" = "最多可釘選 %lld 則筆記";
 "Edit Note" = "編輯筆記";
+"Edit in Separate Window" = "在獨立視窗中編輯";
+"Open in Separate Window" = "移至獨立視窗";
+"Keep Window on Top" = "視窗置頂";
+"On" = "開啟";
+"Off" = "關閉";
 "New Note" = "新增筆記";
 "Save" = "儲存";
 "Cancel" = "取消";
